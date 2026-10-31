@@ -221,7 +221,11 @@ const L = {
   localRef: ['سعر الكيس بالسوق المحلي (اختياري، للمقارنة)', 'Local price per pouch (optional, for comparison)'],
   unitP: ['سعر الكيس / العلبة الواحدة', 'Price per pouch / pack'],
   planSet: ['خطة التخفيف', 'Reduction plan'], planStart: ['بداية التتبع', 'Tracking start'], measureDays: ['أيام القياس', 'Measuring days'], stepDays: ['طول الفترة (يوم)', 'Block length (days)'], needDays: ['أيام الالتزام المطلوبة', 'Days needed on target'],
-  scoring: ['نقاط العادات', 'Habit points'], backup: ['نسخة احتياطية', 'Backup'], exportB: ['نزّل نسخة', 'Download backup'], importB: ['رجّع من نسخة', 'Restore backup'],
+  scoring: ['نقاط العادات', 'Habit points'], backup: ['نسخة احتياطية', 'Backup'], exportB: ['اعمل نسخة', 'Make a backup'],
+  backupHint: ['احفظها بـ Google Drive أو ابعتها لإيميلك', 'Save it to Google Drive or email it to yourself'],
+  lastB: ['آخر نسخة: {d}', 'Last backup: {d}'], neverB: ['ما عملت نسخة لسا', 'No backup yet'],
+  remindB: ['صار لك {n} يوم بدون نسخة احتياطية', 'It has been {n} days since your last backup'], remindNever: ['ما عملت نسخة احتياطية لبياناتك لسا', 'You have not backed up your data yet'],
+  backupSaved: ['انحفظت النسخة الاحتياطية', 'Backup saved'], importB: ['رجّع من نسخة', 'Restore backup'],
   restored: ['رجعت البيانات', 'Data restored'], badFile: ['الملف مش صحيح', 'That file is not a backup'], savedT: ['انحفظ', 'Saved'],
   sureDel: ['متأكد بدك تحذف؟', 'Delete this?'], aed: ['درهم', 'AED'],
   dayNames: [['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'], ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']],
@@ -232,7 +236,7 @@ const t = (k, vars) => { let s = L[k] ? L[k][S.lang === 'en' ? 1 : 0] : k; if (v
 /* ---------- state ---------- */
 const todayISO = () => iso(new Date());
 const DEF = () => ({
-  v: 1, lang: 'ar', theme: 'auto',
+  v: 1, lang: 'ar', theme: 'auto', lastBackup: '',
   habits: [], marks: {}, cigs: {}, pouches: [], purchases: [], outs: [], health: [], overrides: [],
   cfg: { oldPerDay: 30, cartonPrice: 100, cartonCigs: 200, cigsPerPouch: 107,
     planStart: todayISO(), measureDays: 7, stepDays: 14, needDays: 10, sFull: 3, sPart: 1, sMiss: 0 },
@@ -527,7 +531,11 @@ function scrToday() {
       return `<div class="row tap" data-act="mark" data-h="${h.id}" data-d="${d}"><span>${esc(h.name)}</span><span style="display:flex;align-items:center;gap:8px"><span class="muted">${markLbl(k)}</span><span class="dot ${markCls(k)}"></span></span></div>`; }).join('')
       : `<div class="empty muted">${t('noHabits')}</div>`}
     <div class="btns"><button class="btn sec" data-act="habitNew">${ic('plus')} ${t('addHabit')}</button></div></section>`;
-  return navBar(t('today'), dayNav()) + `<main class="wrap">${cig}${pouch}${habits}</main>`;
+  // Monthly nudge to back up, once there is data worth keeping.
+  const hasData = S.purchases.length || S.habits.length || Object.keys(S.cigs).length;
+  const age = S.lastBackup ? diff(S.lastBackup, todayISO()) : null;
+  const remind = hasData && (age == null || age > 30) ? `<section class="card"><div class="row"><span class="muted">${age == null ? t('remindNever') : t('remindB', { n: age })}</span><button class="btn" data-act="exportB">${t('exportB')}</button></div></section>` : '';
+  return navBar(t('today'), dayNav()) + `<main class="wrap">${remind}${cig}${pouch}${habits}</main>`;
 }
 
 function scrHabits() {
@@ -831,7 +839,7 @@ const A = {
       `<h3 style="margin-top:14px">${t('planSet')}</h3>${fld(t('planStart'), inp('c_planStart', c.planStart, 'date'))}<div class="grid2">${fld(t('measureDays'), inp('c_measureDays', c.measureDays, 'number'))}${fld(t('stepDays'), inp('c_stepDays', c.stepDays, 'number'))}</div>${fld(t('needDays'), inp('c_needDays', c.needDays, 'number'))}` +
       `<h3 style="margin-top:14px">${t('scoring')}</h3><div class="trio">${fld(t('full'), inp('c_sFull', c.sFull, 'number'))}${fld(t('part'), inp('c_sPart', c.sPart, 'number'))}${fld(t('miss'), inp('c_sMiss', c.sMiss, 'number'))}</div>` +
       `<button class="btn w" data-act="cfgSave">${t('save')}</button>` +
-      `<h3 style="margin-top:14px">${t('backup')}</h3><div class="btns"><button class="btn sec" data-act="exportB">${t('exportB')}</button><button class="btn sec" data-act="importB">${t('importB')}</button></div><input id="impFile" type="file" accept="application/json,.json" hidden data-change="importFile">` +
+      `<h3 style="margin-top:14px">${t('backup')}</h3><div class="muted">${S.lastBackup ? t('lastB', { d: short(S.lastBackup) }) : t('neverB')} · ${t('backupHint')}</div><div class="btns"><button class="btn sec" data-act="exportB">${t('exportB')}</button><button class="btn sec" data-act="importB">${t('importB')}</button></div><input id="impFile" type="file" accept="application/json,.json" hidden data-change="importFile">` +
       (window.extraSettings ? window.extraSettings() : ''));
   },
   setLang: e => { S.lang = e.dataset.v; commit(); A.settings(); },
@@ -843,10 +851,18 @@ const A = {
     c.stepDays = Math.max(1, c.stepDays); c.needDays = Math.min(c.needDays, c.stepDays); c.cartonCigs = Math.max(1, c.cartonCigs); c.cigsPerPouch = Math.max(1, c.cigsPerPouch);
     closeSheet(); commit(); toast(t('savedT'));
   },
-  exportB: () => {
+  exportB: async () => {
+    const txt = JSON.stringify(S, null, 1), name = 'nafas-backup-' + todayISO() + '.json';
+    const done = msg => { S.lastBackup = todayISO(); closeSheet(); commit(); toast(msg); };
+    // Phones get the share sheet (save to Drive, Files or email); elsewhere the file downloads.
+    try {
+      const file = new File([txt], name, { type: 'application/json' });
+      if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: t('backup') }); return done(t('backupSaved')); }
+    } catch (e) { if (e.name === 'AbortError') return; }
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' }));
-    a.download = 'nafas-backup-' + todayISO() + '.json'; document.body.appendChild(a); a.click(); a.remove();
+    a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' })); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    done(t('backupSaved'));
   },
   importB: () => document.getElementById('impFile').click(),
   importFile: e => {
