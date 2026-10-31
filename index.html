@@ -179,6 +179,11 @@ const L = {
   evalT: ['تقييم الشهر', 'Month review'], habit: ['العادة', 'Habit'], score: ['النقاط', 'Score'], pct: ['النسبة', '%'],
   evalNote: ['الأيام الفاضية ما بتنحسب. المقام = الأيام اللي علّمتها × 3', 'Empty days are not counted. Max = marked days × 3'],
   name: ['الاسم', 'Name'],
+  remindAt: ['ذكّرني الساعة (اختياري)', 'Remind me at (optional)'], remindPrev: ['ذكّرني باليوم اللي قبل (مثلاً الصيام)', 'Remind me the day before (e.g. fasting)'],
+  remindersT: ['التذكيرات', 'Reminders'], logRem: ['تذكير تسجيل الفلاتر آخر اليوم (اختياري)', 'Evening reminder to log filters (optional)'],
+  calBtn: ['أضف التذكيرات للتقويم', 'Add reminders to calendar'], calDone: ['افتح الملف ليضيف التذكيرات لتقويمك', 'Open the file to add the reminders to your calendar'],
+  calHint: ['أوقات العادات بتحطها من تعديل كل عادة. إذا غيرتها، احذف تذكيرات "نفس" القديمة من التقويم واكبس الزر من جديد', 'Set each habit\'s time in its edit screen. If you change them, delete the old Nafas reminders from your calendar and tap again'],
+  noRem: ['ما في عادات إلها وقت تذكير لسا', 'No habit has a reminder time yet'], logTitle: ['نفس: سجّل فلاتر اليوم', 'Nafas: log today\'s filters'],
   howOften: ['كم مرة', 'How often'], every: ['كل يوم', 'Every day'], fixedDays: ['أيام محددة', 'Set days'], perWeekL: ['مرات بالأسبوع', 'Times a week'],
   timesWeek: ['كم مرة بالأسبوع', 'Times per week'], pickDays: ['اختار يوم واحد على الأقل', 'Pick at least one day'],
   weekProg: ['{a}/{b} هالأسبوع', '{a}/{b} this week'], perWeekShort: ['{n} مرات بالأسبوع', '{n} times a week'],
@@ -472,6 +477,31 @@ function weekDone(h, d) {
   for (let i = 0; i < 7; i++) { const k = S.marks[addD(ws, i)] && S.marks[addD(ws, i)][h.id]; if (k === 'f' || k === 'p') n++; }
   return n;
 }
+// Calendar file (iCalendar) with one repeating event and alert per reminder: every day, or on the habit's days
+// (or the evening before, for things like fasting). Times are local, so they follow the phone's time zone.
+function buildICS() {
+  const BY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'], today = todayISO(), ev = [];
+  const icsText = s => String(s).replace(/\\/g, '\\\\').replace(/[,;]/g, m => '\\' + m).replace(/\n/g, ' ');
+  const add = (id, title, time, from, weekdays) => {
+    let d = from > today ? from : today;
+    for (let i = 0; weekdays && i < 7 && !weekdays.includes(P(d).getDay()); i++) d = addD(d, 1);
+    const st = d.replaceAll('-', '') + 'T' + time.replace(':', '') + '00';
+    const rule = weekdays ? 'FREQ=WEEKLY;BYDAY=' + weekdays.map(n => BY[n]).join(',') : 'FREQ=DAILY';
+    ev.push(['BEGIN:VEVENT', 'UID:nafas-' + id + '@dramjadatieh.github.io', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z',
+      'DTSTART:' + st, 'DURATION:PT10M', 'RRULE:' + rule, 'SUMMARY:' + icsText(title),
+      'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsText(title), 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT'].join('\r\n'));
+  };
+  for (const h of S.habits) {
+    if (h.stopped || !h.remind) continue;
+    const days = h.days && h.days.length ? h.days.map(n => h.remindPrev ? (n + 6) % 7 : n) : null;
+    add(h.id, t('app') + ': ' + h.name, h.remind, h.remindPrev && days ? addD(h.start, -1) : h.start, days);
+  }
+  if (S.cfg.logRemind) add('log', t('logTitle'), S.cfg.logRemind, S.cfg.planStart, null);
+  if (!ev.length) return '';
+  // Calendar lines longer than 75 bytes are folded onto continuation lines that start with a space.
+  const fold = line => { let out = '', n = 0; for (const ch of line) { const b = new TextEncoder().encode(ch).length; if (n + b > 73) { out += '\r\n '; n = 1; } out += ch; n += b; } return out; };
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Nafas//Reminders//AR', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:' + t('app'), ...ev, 'END:VCALENDAR'].join('\r\n').split('\r\n').map(fold).join('\r\n') + '\r\n';
+}
 function schedLbl(h) {
   if (h.perWeek) return t('perWeekShort', { n: h.perWeek });
   if (h.days && h.days.length) return [6, 0, 1, 2, 3, 4, 5].filter(n => h.days.includes(n)).map(n => L.dShort[S.lang === 'en' ? 1 : 0][n]).join(' · ');
@@ -759,7 +789,9 @@ const A = {
     return fld(t('name'), inp('hName', h.name || '', 'text', h.id ? '' : 'autofocus')) + fld(t('startDate'), inp('hStart', h.start, 'date')) +
       fld(t('howOften'), `<div class="seg" id="hMode">${[['daily', t('every')], ['days', t('fixedDays')], ['week', t('perWeekL')]].map(([k, l]) => `<button class="${k === mode ? 'on' : ''}" data-act="hMode" data-v="${k}">${l}</button>`).join('')}</div>`) +
       `<div id="hDaysW" ${mode === 'days' ? '' : 'hidden'}><div class="seg" style="margin-bottom:10px">${order.map(n => `<button class="${(h.days || []).includes(n) ? 'on' : ''}" data-act="hDay" data-v="${n}" style="font-size:12px">${ds[n]}</button>`).join('')}</div></div>` +
-      `<div id="hWeekW" ${mode === 'week' ? '' : 'hidden'}>${fld(t('timesWeek'), inp('hPer', h.perWeek || 3, 'number'))}</div><div class="warn" id="hErr" hidden>${t('pickDays')}</div>`;
+      `<div id="hWeekW" ${mode === 'week' ? '' : 'hidden'}>${fld(t('timesWeek'), inp('hPer', h.perWeek || 3, 'number'))}</div><div class="warn" id="hErr" hidden>${t('pickDays')}</div>` +
+      fld(t('remindAt'), inp('hRemind', h.remind || '', 'time')) +
+      `<label class="muted" style="display:flex;gap:8px;align-items:center;margin:-4px 0 10px"><input id="hPrev" type="checkbox" style="width:auto;min-height:0" ${h.remindPrev ? 'checked' : ''}>${t('remindPrev')}</label>`;
   },
   habitNew: () => openSheet(t('addHabit'), A.habitForm({ start: UI.tab === 'today' ? UI.day : todayISO() }) + `<button class="btn w" data-act="habitSave">${t('save')}</button>`),
   habitList: () => openSheet(t('manage'), S.habits.map(h => `<div class="row tap" data-act="habitEdit" data-id="${h.id}"><span>${esc(h.name)}<br><span class="muted">${schedLbl(h)}</span></span><span class="muted">${h.stopped ? t('stopped') : short(h.start)}</span></div>`).join('') || `<div class="empty muted">${t('noHabits')}</div>`),
@@ -777,7 +809,7 @@ const A = {
     if (mode === 'days' && !days.length) { document.getElementById('hErr').hidden = false; return; }
     const perWeek = mode === 'week' ? Math.min(7, Math.max(1, parseInt(val('hPer')) || 1)) : 0;
     const h = e.dataset.id && S.habits.find(x => x.id === e.dataset.id);
-    const data = { name, start, days, perWeek };
+    const data = { name, start, days, perWeek, remind: val('hRemind'), remindPrev: document.getElementById('hPrev').checked };
     if (h) Object.assign(h, data); else S.habits.push({ id: uid(), ...data });
     closeSheet(); commit();
   },
@@ -895,6 +927,7 @@ const A = {
       `<h3 style="margin-top:14px">${t('planSet')}</h3>${fld(t('planStart'), inp('c_planStart', c.planStart, 'date'))}<div class="grid2">${fld(t('measureDays'), inp('c_measureDays', c.measureDays, 'number'))}${fld(t('stepDays'), inp('c_stepDays', c.stepDays, 'number'))}</div>${fld(t('needDays'), inp('c_needDays', c.needDays, 'number'))}` +
       `<h3 style="margin-top:14px">${t('scoring')}</h3><div class="trio">${fld(t('full'), inp('c_sFull', c.sFull, 'number'))}${fld(t('part'), inp('c_sPart', c.sPart, 'number'))}${fld(t('miss'), inp('c_sMiss', c.sMiss, 'number'))}</div>` +
       `<button class="btn w" data-act="cfgSave">${t('save')}</button>` +
+      `<h3 style="margin-top:14px">${t('remindersT')}</h3>${fld(t('logRem'), inp('c_logRemind', c.logRemind || '', 'time'))}<div class="muted">${t('calHint')}</div><div class="btns"><button class="btn sec" data-act="calExport">${t('calBtn')}</button></div>` +
       `<h3 style="margin-top:14px">${t('backup')}</h3><div class="muted">${S.lastBackup ? t('lastB', { d: short(S.lastBackup) }) : t('neverB')} · ${t('backupHint')}</div><div class="btns"><button class="btn sec" data-act="exportB">${t('exportB')}</button><button class="btn sec" data-act="importB">${t('importB')}</button></div><input id="impFile" type="file" accept="application/json,.json" hidden data-change="importFile">` +
       (window.extraSettings ? window.extraSettings() : ''));
   },
@@ -904,8 +937,19 @@ const A = {
     const c = S.cfg;
     for (const k of ['oldPerDay', 'cartonPrice', 'cartonCigs', 'cigsPerPouch', 'measureDays', 'stepDays', 'needDays', 'sFull', 'sPart', 'sMiss']) { const v = val('c_' + k); if (v !== '' && !isNaN(+v)) c[k] = +v; }
     if (val('c_planStart')) c.planStart = val('c_planStart');
+    c.logRemind = val('c_logRemind');
     c.stepDays = Math.max(1, c.stepDays); c.needDays = Math.min(c.needDays, c.stepDays); c.cartonCigs = Math.max(1, c.cartonCigs); c.cigsPerPouch = Math.max(1, c.cigsPerPouch);
     closeSheet(); commit(); toast(t('savedT'));
+  },
+  calExport: () => {
+    const lr = val('c_logRemind'); if (lr !== S.cfg.logRemind) { S.cfg.logRemind = lr; save(); }
+    const ics = buildICS(); if (!ics) { toast(t('noRem')); return; }
+    const blob = new Blob([ics], { type: 'text/calendar' }), url = URL.createObjectURL(blob);
+    // iPhone opens a calendar file in its "Add all" screen; other phones download it and open it in the calendar app.
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) { location.href = url; return; }
+    const a = document.createElement('a'); a.href = url; a.download = 'nafas-reminders.ics';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast(t('calDone'));
   },
   exportB: async () => {
     const txt = JSON.stringify(S, null, 1), name = 'nafas-backup-' + todayISO() + '.json';
