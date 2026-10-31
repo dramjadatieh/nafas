@@ -178,7 +178,11 @@ const L = {
   full: ['كامل', 'Full'], part: ['جزئي', 'Partial'], miss: ['فاتت', 'Missed'], untracked: ['ما تتبعت', 'Not tracked'],
   evalT: ['تقييم الشهر', 'Month review'], habit: ['العادة', 'Habit'], score: ['النقاط', 'Score'], pct: ['النسبة', '%'],
   evalNote: ['الأيام الفاضية ما بتنحسب. المقام = الأيام اللي علّمتها × 3', 'Empty days are not counted. Max = marked days × 3'],
-  name: ['الاسم', 'Name'], startDate: ['تاريخ البداية', 'Start date'], save: ['حفظ', 'Save'], del: ['حذف', 'Delete'], cancel: ['إلغاء', 'Cancel'],
+  name: ['الاسم', 'Name'],
+  howOften: ['كم مرة', 'How often'], every: ['كل يوم', 'Every day'], fixedDays: ['أيام محددة', 'Set days'], perWeekL: ['مرات بالأسبوع', 'Times a week'],
+  timesWeek: ['كم مرة بالأسبوع', 'Times per week'], pickDays: ['اختار يوم واحد على الأقل', 'Pick at least one day'],
+  weekProg: ['{a}/{b} هالأسبوع', '{a}/{b} this week'], perWeekShort: ['{n} مرات بالأسبوع', '{n} times a week'],
+  dShort: [['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'], ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']], startDate: ['تاريخ البداية', 'Start date'], save: ['حفظ', 'Save'], del: ['حذف', 'Delete'], cancel: ['إلغاء', 'Cancel'],
   archive: ['إيقاف العادة', 'Stop habit'], restore: ['رجّعها', 'Restore'], stopped: ['موقوفة', 'Stopped'],
   measureAvg: ['معدل أسبوع القياس', 'Measuring-week average'], planT: ['الخطة', 'Plan'],
   planText: ['بعد أسبوع القياس الهدف = معدلك − 1. كل {s} يوم: إذا التزمت {k} يوم أو أكثر بينزل سيجارة، وإذا لا بيضل نفسه.', 'After the measuring week the target = your average − 1. Every {s} days: hit it on {k}+ days and it drops by one, otherwise it stays.'],
@@ -460,13 +464,33 @@ function moneyFor(a, b) {
 
 /* ---------- habit calculations ---------- */
 function habitActive(h, d) { return h.start <= d && (!h.stopped || d < h.stopped); }
+// A habit runs every day, on fixed weekdays (h.days, 0 = Sunday), or a number of times a week (h.perWeek).
+const onDay = (h, d) => !h.days || !h.days.length || h.days.includes(P(d).getDay());
+const weekStart = d => addD(d, -((P(d).getDay() + 6) % 7));
+function weekDone(h, d) {
+  const ws = weekStart(d); let n = 0;
+  for (let i = 0; i < 7; i++) { const k = S.marks[addD(ws, i)] && S.marks[addD(ws, i)][h.id]; if (k === 'f' || k === 'p') n++; }
+  return n;
+}
+function schedLbl(h) {
+  if (h.perWeek) return t('perWeekShort', { n: h.perWeek });
+  if (h.days && h.days.length) return [6, 0, 1, 2, 3, 4, 5].filter(n => h.days.includes(n)).map(n => L.dShort[S.lang === 'en' ? 1 : 0][n]).join(' · ');
+  return t('every');
+}
 function evalHabit(h, m) {
   const c = S.cfg, a = m + '-01', b = monthEnd(m), today = todayISO();
-  let fu = 0, pa = 0, mi = 0;
+  let fu = 0, pa = 0, mi = 0, days = 0;
   for (let d = a; d <= b && d <= today; d = addD(d, 1)) {
-    if (!habitActive(h, d)) continue;
+    if (!habitActive(h, d) || !onDay(h, d)) continue;
+    days++;
     const k = S.marks[d] && S.marks[d][h.id];
     if (k === 'f') fu++; else if (k === 'p') pa++; else if (k === 'm') mi++;
+  }
+  // Times a week: the month's goal is that rate over the days it ran; days off are not misses.
+  if (h.perWeek) {
+    const goal = days ? Math.max(1, Math.round(h.perWeek * days / 7)) : 0, max = goal * c.sFull;
+    const score = Math.min(fu * c.sFull + pa * c.sPart, max);
+    return { fu, pa, mi: Math.max(0, goal - fu - pa), score, max, pct: max ? score / max * 100 : null };
   }
   const tracked = fu + pa + mi, score = fu * c.sFull + pa * c.sPart + mi * c.sMiss, max = tracked * c.sFull;
   return { fu, pa, mi, score, max, pct: max ? score / max * 100 : null };
@@ -530,10 +554,10 @@ function scrToday() {
     ${warns.map(w => `<div class="warn">${w}</div>`).join('')}
     <div class="btns"><button class="btn" data-act="newPouch">${t('newPouch')}</button></div></section>`;
 
-  const hs = S.habits.filter(h => habitActive(h, d));
+  const hs = S.habits.filter(h => habitActive(h, d) && onDay(h, d));
   const habits = `<section class="card"><h2>${t('yourHabits')}<small>${t('tapHint')}</small></h2>
     ${hs.length ? hs.map(h => { const k = S.marks[d] && S.marks[d][h.id];
-      return `<div class="row tap" data-act="mark" data-h="${h.id}" data-d="${d}"><span>${esc(h.name)}</span><span style="display:flex;align-items:center;gap:8px"><span class="muted">${markLbl(k)}</span><span class="dot ${markCls(k)}"></span></span></div>`; }).join('')
+      return `<div class="row tap" data-act="mark" data-h="${h.id}" data-d="${d}"><span>${esc(h.name)}</span><span style="display:flex;align-items:center;gap:8px"><span class="muted">${h.perWeek ? t('weekProg', { a: weekDone(h, d), b: h.perWeek }) : markLbl(k)}</span><span class="dot ${markCls(k)}"></span></span></div>`; }).join('')
       : `<div class="empty muted">${t('noHabits')}</div>`}
     <div class="btns"><button class="btn sec" data-act="habitNew">${ic('plus')} ${t('addHabit')}</button></div></section>`;
   // Monthly nudge to back up, once there is data worth keeping.
@@ -553,7 +577,7 @@ function scrHabits() {
     const e = evalHabit(h, m); let cells = '';
     for (let d = a; d <= b; d = addD(d, 1)) {
       const n = P(d).getDate();
-      if (!habitActive(h, d) || d > today) { cells += `<span class="dot m-x num">${n}</span>`; continue; }
+      if (!habitActive(h, d) || !onDay(h, d) || d > today) { cells += `<span class="dot m-x num">${n}</span>`; continue; }
       const k = S.marks[d] && S.marks[d][h.id];
       cells += `<button class="dot ${markCls(k)} num" data-act="mark" data-h="${h.id}" data-d="${d}" aria-label="${n}: ${markLbl(k)}">${n}</button>`;
     }
@@ -721,20 +745,40 @@ const A = {
   cigClear: () => { delete S.cigs[UI.day]; commit(); },
   mark: e => {
     const d = e.dataset.d, h = e.dataset.h, cur = S.marks[d] && S.marks[d][h];
-    const nx = { undefined: 'f', f: 'p', p: 'm', m: undefined }[cur];
+    const hb = S.habits.find(x => x.id === h);
+    // Times-a-week habits have no "missed": a day off is fine.
+    const nx = (hb && hb.perWeek ? { undefined: 'f', f: 'p', p: undefined, m: undefined } : { undefined: 'f', f: 'p', p: 'm', m: undefined })[cur];
     S.marks[d] = S.marks[d] || {};
     if (nx) S.marks[d][h] = nx; else delete S.marks[d][h];
     if (!Object.keys(S.marks[d]).length) delete S.marks[d];
     commit();
   },
-  habitNew: () => openSheet(t('addHabit'), fld(t('name'), inp('hName', '', 'text', 'autofocus')) + fld(t('startDate'), inp('hStart', UI.tab === 'today' ? UI.day : todayISO(), 'date')) + `<button class="btn w" data-act="habitSave">${t('save')}</button>`),
-  habitList: () => openSheet(t('manage'), S.habits.map(h => `<div class="row tap" data-act="habitEdit" data-id="${h.id}"><span>${esc(h.name)}</span><span class="muted">${h.stopped ? t('stopped') : short(h.start)}</span></div>`).join('') || `<div class="empty muted">${t('noHabits')}</div>`),
-  habitEdit: e => { const h = S.habits.find(x => x.id === e.dataset.id); openSheet(esc(h.name), fld(t('name'), inp('hName', h.name)) + fld(t('startDate'), inp('hStart', h.start, 'date')) +
+  habitForm: h => {
+    const mode = h.perWeek ? 'week' : h.days && h.days.length ? 'days' : 'daily';
+    const order = [6, 0, 1, 2, 3, 4, 5], ds = L.dShort[S.lang === 'en' ? 1 : 0];
+    return fld(t('name'), inp('hName', h.name || '', 'text', h.id ? '' : 'autofocus')) + fld(t('startDate'), inp('hStart', h.start, 'date')) +
+      fld(t('howOften'), `<div class="seg" id="hMode">${[['daily', t('every')], ['days', t('fixedDays')], ['week', t('perWeekL')]].map(([k, l]) => `<button class="${k === mode ? 'on' : ''}" data-act="hMode" data-v="${k}">${l}</button>`).join('')}</div>`) +
+      `<div id="hDaysW" ${mode === 'days' ? '' : 'hidden'}><div class="seg" style="margin-bottom:10px">${order.map(n => `<button class="${(h.days || []).includes(n) ? 'on' : ''}" data-act="hDay" data-v="${n}" style="font-size:12px">${ds[n]}</button>`).join('')}</div></div>` +
+      `<div id="hWeekW" ${mode === 'week' ? '' : 'hidden'}>${fld(t('timesWeek'), inp('hPer', h.perWeek || 3, 'number'))}</div><div class="warn" id="hErr" hidden>${t('pickDays')}</div>`;
+  },
+  habitNew: () => openSheet(t('addHabit'), A.habitForm({ start: UI.tab === 'today' ? UI.day : todayISO() }) + `<button class="btn w" data-act="habitSave">${t('save')}</button>`),
+  habitList: () => openSheet(t('manage'), S.habits.map(h => `<div class="row tap" data-act="habitEdit" data-id="${h.id}"><span>${esc(h.name)}<br><span class="muted">${schedLbl(h)}</span></span><span class="muted">${h.stopped ? t('stopped') : short(h.start)}</span></div>`).join('') || `<div class="empty muted">${t('noHabits')}</div>`),
+  habitEdit: e => { const h = S.habits.find(x => x.id === e.dataset.id); openSheet(esc(h.name), A.habitForm(h) +
     `<button class="btn w" data-act="habitSave" data-id="${h.id}">${t('save')}</button><div class="btns">${h.stopped ? `<button class="btn sec" data-act="habitStop" data-id="${h.id}">${t('restore')}</button>` : `<button class="btn sec" data-act="habitStop" data-id="${h.id}">${t('archive')}</button>`}<button class="btn danger" data-act="habitDel" data-id="${h.id}">${t('del')}</button></div>`); },
+  hMode: e => {
+    document.querySelectorAll('#hMode button').forEach(b => b.classList.toggle('on', b === e));
+    document.getElementById('hDaysW').hidden = e.dataset.v !== 'days'; document.getElementById('hWeekW').hidden = e.dataset.v !== 'week';
+  },
+  hDay: e => { e.classList.toggle('on'); document.getElementById('hErr').hidden = true; },
   habitSave: e => {
     const name = val('hName'), start = val('hStart') || todayISO(); if (!name) return;
+    const mode = document.querySelector('#hMode button.on').dataset.v;
+    const days = mode === 'days' ? [...document.querySelectorAll('#hDaysW button.on')].map(b => +b.dataset.v) : [];
+    if (mode === 'days' && !days.length) { document.getElementById('hErr').hidden = false; return; }
+    const perWeek = mode === 'week' ? Math.min(7, Math.max(1, parseInt(val('hPer')) || 1)) : 0;
     const h = e.dataset.id && S.habits.find(x => x.id === e.dataset.id);
-    if (h) { h.name = name; h.start = start; } else S.habits.push({ id: uid(), name, start });
+    const data = { name, start, days, perWeek };
+    if (h) Object.assign(h, data); else S.habits.push({ id: uid(), ...data });
     closeSheet(); commit();
   },
   habitStop: e => { const h = S.habits.find(x => x.id === e.dataset.id); h.stopped = h.stopped ? undefined : todayISO(); if (!h.stopped) delete h.stopped; closeSheet(); commit(); },
