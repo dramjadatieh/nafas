@@ -392,19 +392,24 @@ function cpc(d, infos, est) {
   return { tob, paper, filter, total: tob + paper + filter, est: isEst };
 }
 // The next pouch of a brand comes from its oldest purchase still in stock: its price and the local price he noted for it.
+// Brand names match whatever the case, spacing or language they were typed in ("pueblo ", "بويبلو" = "Pueblo").
+const ALIAS = { 'بويبلو': 'pueblo', 'درم': 'drum', 'امبر ليف': 'amber leaf', 'أمبر ليف': 'amber leaf', 'جولدن فيرجينيا': 'golden virginia', 'جولد فيرجينيا': 'golden virginia', 'امريكان سبيريت': 'american spirit', 'أمريكان سبيريت': 'american spirit' };
+const bkey = s => { const k = String(s || '').trim().replace(/\s+/g, ' ').toLowerCase(); return ALIAS[k] || k; };
+const sameB = (a, b) => bkey(a) === bkey(b);
 function nextLot(brand) {
-  const ps = S.purchases.filter(p => p.kind === 'tobacco' && p.brand === brand).sort((a, b) => a.date < b.date ? -1 : 1);
-  let used = sum(S.outs.filter(o => o.kind === 'tobacco' && o.brand === brand).map(o => +o.qty)) + S.pouches.filter(p => p.brand === brand).length;
+  const ps = S.purchases.filter(p => p.kind === 'tobacco' && sameB(p.brand, brand)).sort((a, b) => a.date < b.date ? -1 : 1);
+  let used = sum(S.outs.filter(o => o.kind === 'tobacco' && sameB(o.brand, brand)).map(o => +o.qty)) + S.pouches.filter(p => sameB(p.brand, brand)).length;
   let lot = ps[ps.length - 1];
   for (const p of ps) { if (used < p.qty) { lot = p; break; } used -= p.qty; }
   return lot ? { price: aedOf(lot) / lot.qty, ref: +lot.localPrice || 0 } : { price: 0, ref: 0 };
 }
 function tobStock() {
-  const brands = [...new Set(S.purchases.filter(p => p.kind === 'tobacco').map(p => p.brand))];
+  const brands = [], seen = new Set();
+  for (const p of S.purchases) if (p.kind === 'tobacco' && !seen.has(bkey(p.brand))) { seen.add(bkey(p.brand)); brands.push(p.brand.trim()); }
   return brands.map(b => ({ brand: b,
-    n: sum(S.purchases.filter(p => p.kind === 'tobacco' && p.brand === b).map(p => +p.qty))
-      - sum(S.outs.filter(o => o.kind === 'tobacco' && o.brand === b).map(o => +o.qty))
-      - S.pouches.filter(p => p.brand === b).length })).filter(x => x.n > 0 || S.pouches.some(p => p.brand === x.brand));
+    n: sum(S.purchases.filter(p => p.kind === 'tobacco' && sameB(p.brand, b)).map(p => +p.qty))
+      - sum(S.outs.filter(o => o.kind === 'tobacco' && sameB(o.brand, b)).map(o => +o.qty))
+      - S.pouches.filter(p => sameB(p.brand, b)).length })).filter(x => x.n > 0 || S.pouches.some(p => sameB(p.brand, x.brand)));
 }
 function unitStock(kind) {
   const bought = sum(S.purchases.filter(p => p.kind === kind).map(unitsOf));
@@ -791,11 +796,18 @@ const A = {
   outEdit: e => A.outForm(S.outs.find(x => x.id === e.dataset.id)),
   outForm: o => {
     o = o || { kind: 'tobacco', brand: '', qty: 1, per: 60, reason: 'gaveAway', date: todayISO() };
-    openSheet(t('out'), fld(t('kind'), sel('oKind', [['tobacco', t('tobacco')], ['paper', t('paper')], ['filter', t('filter')]], o.kind)) +
-      fld(t('brand'), `<input id="oBrand" list="brands" value="${esc(o.brand || '')}">${brandList()}`) +
-      `<div class="grid2">${fld(t('qty'), inp('oQty', o.qty, 'number'))}${fld(t('per'), inp('oPer', o.per, 'number'))}</div>` +
+    // Tobacco brands come from a list of what he bought, so a removal always matches its purchase.
+    const bs = tobStock().map(x => x.brand); if (o.brand && !bs.some(b => sameB(b, o.brand))) bs.push(o.brand);
+    openSheet(t('out'), fld(t('kind'), sel('oKind', [['tobacco', t('tobacco')], ['paper', t('paper')], ['filter', t('filter')]], o.kind).replace('<select', '<select data-change="outKind"')) +
+      `<div id="oBrandW">${fld(t('brand'), sel('oBrand', bs.map(b => [b, b]), bs.find(b => sameB(b, o.brand)) || bs[0]))}</div>` +
+      `<div class="grid2">${fld(t('qty'), inp('oQty', o.qty, 'number'))}<div id="oPerW">${fld(t('per'), inp('oPer', o.per, 'number'))}</div></div>` +
       `<div class="grid2">${fld(t('reason'), sel('oReason', [['gaveAway', t('gaveAway')], ['usedBefore', t('usedBefore')], ['lost', t('lost')]], o.reason))}${fld(t('date'), inp('oDate', o.date, 'date'))}</div>` +
       `<button class="btn w" data-act="outSave" ${o.id ? `data-id="${o.id}"` : ''}>${t('save')}</button>` + (o.id ? `<div class="btns"><button class="btn danger" data-act="outDel" data-id="${o.id}">${t('del')}</button></div>` : ''));
+    A.outKind(true);
+  },
+  outKind: keep => {
+    const k = val('oKind'); document.getElementById('oBrandW').hidden = k !== 'tobacco'; document.getElementById('oPerW').hidden = k === 'tobacco';
+    if (keep !== true && k !== 'tobacco') document.getElementById('oPer').value = k === 'paper' ? 60 : 120;
   },
   outSave: e => {
     const kind = val('oKind'), qty = +val('oQty'); if (!qty) return;
