@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F2D4A">
+<title>نفس</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="نفس">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png?v=1">
+<link rel="apple-touch-icon" href="icon-180.png?v=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout follows Jaybti: navy navbar with a gold rule, beige canvas, ivory cards, bottom tab bar, bottom sheets.
+   Brand colors only (navy, gold, ivory, beige + opacity); gold text only on navy. Red is kept for "missed" and over-target alone. */
+:root {
+  --navy: #0F2D4A; --gold: #D4AF37; --ivory: #F8F5EA; --beige: #E6E2D6;
+  --nav: var(--navy); --brand: var(--navy); --on-brand: var(--ivory);
+  --bg: var(--beige); --surface: var(--ivory); --ink: var(--navy);
+  --muted: color-mix(in srgb, var(--navy) 78%, transparent);
+  --line: color-mix(in srgb, var(--navy) 14%, transparent);
+  --track: color-mix(in srgb, var(--navy) 10%, transparent);
+  --red: #B3261E;
+  --full: var(--gold); --part: var(--navy);
+  --f-body: "Tajawal", "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --brand: var(--gold); --on-brand: var(--navy); --bg: var(--navy);
+    --surface: color-mix(in srgb, var(--ivory) 7%, var(--navy)); --ink: var(--ivory);
+    --muted: color-mix(in srgb, var(--ivory) 78%, transparent); --line: color-mix(in srgb, var(--ivory) 14%, transparent);
+    --track: color-mix(in srgb, var(--ivory) 14%, transparent); --red: #F2A39D; --part: var(--beige);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --brand: var(--gold); --on-brand: var(--navy); --bg: var(--navy);
+  --surface: color-mix(in srgb, var(--ivory) 7%, var(--navy)); --ink: var(--ivory);
+  --muted: color-mix(in srgb, var(--ivory) 78%, transparent); --line: color-mix(in srgb, var(--ivory) 14%, transparent);
+  --track: color-mix(in srgb, var(--ivory) 14%, transparent); --red: #F2A39D; --part: var(--beige);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; font-weight: 500; line-height: 1.5; -webkit-tap-highlight-color: transparent; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--nav); }
+button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.num { font-family: "Inter", var(--f-body); font-variant-numeric: tabular-nums; unicode-bidi: isolate; }
+svg.i { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+#app { max-width: 600px; margin: 0 auto; min-height: 100vh; padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--nav); color: var(--ivory); border-bottom: 2px solid var(--gold); padding: 10px 14px; }
+.nav-row { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; min-height: 36px; }
+.nav h1 { margin: 0; font-size: 19px; font-weight: 700; text-align: center; }
+.nav .ib { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; color: var(--gold); }
+.sub { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 6px; font-size: 14px; }
+.sub .ib { width: 30px; height: 30px; }
+.sub .lbl { min-width: 150px; text-align: center; font-weight: 700; }
+.chip { background: var(--gold); color: var(--navy); border-radius: 99px; padding: 1px 10px; font-weight: 700; font-size: 12px; }
+[dir="ltr"] .flip { transform: scaleX(-1); }
+
+.wrap { display: flex; flex-direction: column; gap: 12px; padding: 12px 0 16px; }
+.card { background: var(--surface); border-block: 1px solid var(--line); padding: 12px 16px; }
+@media (min-width: 600px) { .card { border: 1px solid var(--line); border-radius: 14px; margin: 0 12px; } }
+.card h2 { margin: 0 0 8px; font-size: 16px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.card h2 small { font-size: 12px; color: var(--muted); font-weight: 500; }
+.hero { background: var(--navy); color: var(--ivory); }
+.hero .big { color: var(--gold); }
+.hero .muted { color: color-mix(in srgb, var(--ivory) 78%, transparent); }
+.muted { color: var(--muted); font-size: 13px; }
+.big { font-size: 30px; font-weight: 800; line-height: 1.15; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.row.tap { cursor: pointer; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 16px; border-radius: 12px; background: var(--brand); color: var(--on-brand); font-weight: 700; }
+.btn.sec { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.btn.danger { background: transparent; color: var(--red); border: 1px solid var(--red); }
+.btn.w { width: 100%; }
+.btns { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.btns .btn { flex: 1; }
+.warn { background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red); border-radius: 10px; padding: 8px 10px; font-size: 13px; margin-top: 8px; }
+.ok { color: var(--ink); font-weight: 700; }
+.over { color: var(--red); font-weight: 700; }
+
+.trio { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; }
+.step { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 4px; }
+.step button { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); font-size: 20px; font-weight: 700; line-height: 1; }
+.step input { width: 52px; text-align: center; font-size: 22px; font-weight: 700; }
+
+.dot { width: 34px; height: 34px; border-radius: 9px; border: 1.5px solid var(--line); flex: none; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+.m-f { background: var(--full); border-color: var(--full); color: var(--navy); }
+.m-p { background: var(--part); border-color: var(--part); color: var(--surface); }
+.m-m { background: var(--red); border-color: var(--red); color: #fff; }
+.m-n { background: transparent; }
+.m-x { background: var(--track); border-color: transparent; opacity: .45; cursor: default; }
+.days { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-top: 8px; }
+.days .dot { width: auto; height: 30px; border-radius: 7px; font-size: 11px; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; font-size: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line); display: inline-block; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { font-weight: 700; font-size: 12px; color: var(--muted); text-align: start; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+td { padding: 7px 4px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+td.n, th.n { text-align: center; }
+.scroll { overflow-x: auto; }
+
+.bars { display: flex; align-items: flex-end; gap: 4px; height: 110px; margin-top: 6px; position: relative; }
+.bars .b { flex: 1; background: var(--brand); border-radius: 4px 4px 0 0; min-height: 2px; position: relative; }
+.bars .b.over { background: var(--red); }
+.bars .b.none { background: var(--track); }
+.bars .tl { position: absolute; inset-inline: 0; border-top: 2px dashed var(--gold); }
+.barlbl { display: flex; gap: 4px; font-size: 10px; color: var(--muted); }
+.barlbl span { flex: 1; text-align: center; }
+
+.tabs { position: fixed; bottom: 0; inset-inline: 0; z-index: 6; background: var(--nav); border-top: 2px solid var(--gold); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.tabs .in { max-width: 600px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); }
+.tabs button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; font-size: 11px; color: color-mix(in srgb, var(--ivory) 70%, transparent); }
+.tabs button.on { color: var(--gold); }
+
+#sheet .ov { position: fixed; inset: 0; z-index: 20; background: rgba(15, 45, 74, .45); display: flex; align-items: flex-end; justify-content: center; }
+#sheet .sh { background: var(--bg); width: 100%; max-width: 600px; max-height: 88vh; overflow-y: auto; border-radius: 18px 18px 0 0; padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px)); }
+#sheet h3 { margin: 0 0 10px; font-size: 17px; display: flex; justify-content: space-between; align-items: center; }
+.fld { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.fld label { font-size: 13px; color: var(--muted); }
+input, select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-height: 42px; padding: 0 10px; width: 100%; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { flex: 1; padding: 8px 0; font-weight: 700; }
+.seg button.on { background: var(--brand); color: var(--on-brand); }
+.toast { position: fixed; bottom: calc(90px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--navy); color: var(--ivory); border: 1px solid var(--gold); padding: 8px 16px; border-radius: 99px; z-index: 30; font-size: 14px; }
+.empty { text-align: center; padding: 14px 0; }
+</style>
+<style>
+html { padding-top: env(safe-area-inset-top, 0px); }
+body { overscroll-behavior-y: none; }
+[hidden] { display: none !important; }
+#auth { position: fixed; inset: 0; z-index: 70; background: var(--nav); border-top: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+.auth-card { background: var(--surface); color: var(--ink); border-radius: 22px; padding: 26px 20px 18px; width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 10px; text-align: center; }
+.auth-logo { width: 72px; height: 72px; border-radius: 18px; margin: 0 auto; }
+.auth-card h2 { margin: 4px 0 0; font-size: 24px; }
+.auth-sub { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+.auth-card input { font-size: 16px; text-align: left; background: var(--bg); }
+.auth-msg { margin: 0; min-height: 1.2em; font-size: 13px; color: var(--red); }
+.auth-msg.ok { color: var(--brand); }
+.auth-btn { background: var(--brand); color: var(--on-brand); border-radius: 12px; padding: 13px; font-weight: 700; font-size: 16px; }
+.auth-btn[disabled] { opacity: .6; }
+.auth-link { color: var(--brand); font-weight: 600; font-size: 14px; padding: 6px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="sheet"></div>
+<div id="auth" dir="rtl" lang="ar" hidden></div>
+<script type="module">
+/* ---------- text (Arabic, English) ---------- */
+const L = {
+  app: ['نفس', 'Nafas'],
+  today: ['اليوم', 'Today'], habits: ['العادات', 'Habits'], smoke: ['الدخان', 'Smoking'], money: ['المصاري', 'Money'], health: ['الصحة', 'Health'],
+  backToday: ['ارجع لليوم', 'Back to today'],
+  cigsToday: ['السجائر', 'Cigarettes'], taken: ['طلّعت', 'Taken'], left: ['ضل', 'Left'], smoked: ['دخنت', 'Smoked'],
+  measure: ['أسبوع قياس: دخّن طبيعي وعدّ بس', 'Measuring week: smoke as usual, just count'],
+  target: ['الهدف', 'Target'], noPlan: ['ما في هدف لهاليوم', 'No target for this day'],
+  takeHint: ['طلّع {n} فلتر وخلي 2-3 احتياط لحالهم', 'Take {n} filters and keep 2-3 spare apart'],
+  within: ['ضمن الهدف', 'Within target'], overBy: ['زيادة {n} عن الهدف', '{n} over target'],
+  notLogged: ['لسا ما سجلت هاليوم', 'Not logged yet'], clear: ['مسح', 'Clear'],
+  pouchNow: ['الكيس الحالي', 'Current pouch'], dayN: ['اليوم {n}', 'Day {n}'], soFar: ['{n} سيجارة لحد الآن', '{n} cigarettes so far'],
+  noPouch: ['ما في كيس مفتوح', 'No open pouch'], newPouch: ['بدأت كيس جديد', 'Started a new pouch'],
+  yourHabits: ['عاداتك', 'Your habits'], tapHint: ['كبسة لتغيير اللون', 'Tap to change'],
+  noHabits: ['ضيف عاداتك مرة وحدة وبتضل كل شهر', 'Add your habits once, they carry over every month'],
+  addHabit: ['ضيف عادة', 'Add habit'], manage: ['تعديل العادات', 'Edit habits'],
+  full: ['كامل', 'Full'], part: ['جزئي', 'Partial'], miss: ['فاتت', 'Missed'], untracked: ['ما تتبعت', 'Not tracked'],
+  evalT: ['تقييم الشهر', 'Month review'], habit: ['العادة', 'Habit'], score: ['النقاط', 'Score'], pct: ['النسبة', '%'],
+  evalNote: ['الأيام الفاضية ما بتنحسب. المقام = الأيام اللي علّمتها × 3', 'Empty days are not counted. Max = marked days × 3'],
+  name: ['الاسم', 'Name'], startDate: ['تاريخ البداية', 'Start date'], save: ['حفظ', 'Save'], del: ['حذف', 'Delete'], cancel: ['إلغاء', 'Cancel'],
+  archive: ['إيقاف العادة', 'Stop habit'], restore: ['رجّعها', 'Restore'], stopped: ['موقوفة', 'Stopped'],
+  measureAvg: ['معدل أسبوع القياس', 'Measuring-week average'], planT: ['الخطة', 'Plan'],
+  planText: ['بعد أسبوع القياس الهدف = معدلك − 1. كل {s} يوم: إذا التزمت {k} يوم أو أكثر بينزل سيجارة، وإذا لا بيضل نفسه.', 'After the measuring week the target = your average − 1. Every {s} days: hit it on {k}+ days and it drops by one, otherwise it stays.'],
+  blockProg: ['هالفترة: التزمت {a} من {b} يوم (بدك {k})', 'This block: on target {a} of {b} days (need {k})'],
+  setTarget: ['حط هدف بإيدك', 'Set target manually'], fromDate: ['ابتداءً من', 'Starting'], manualT: ['أهداف يدوية', 'Manual targets'],
+  last14: ['آخر 14 يوم', 'Last 14 days'],
+  pouchLog: ['سجل الأكياس', 'Pouch log'], brand: ['النوع', 'Brand'], start: ['البداية', 'Start'], end: ['النهاية', 'End'], daysL: ['أيام', 'Days'],
+  cigs: ['سجائر', 'Cigs'], perDay: ['باليوم', '/day'], gPer: ['غ/سيجارة', 'g/cig'], perCig: ['درهم/سيجارة', 'AED/cig'], open: ['مفتوح', 'open'],
+  pouchNote: ['سجائر الكيس = مجموع اللي دخنته من يوم فتحته لحد ما فتحت اللي بعده', 'Cigarettes per pouch = everything smoked from its start until the next pouch starts'],
+  stock: ['المخزون', 'Stock'], tobacco: ['دخان', 'Tobacco'], paper: ['ورق', 'Papers'], filter: ['فلاتر', 'Filters'], pouches: ['أكياس', 'pouches'],
+  daysLeft: ['بيكفي ~{n} يوم', '~{n} days left'], lowStock: ['{x} بتخلص بعد ~{n} يوم. اشتري قبل ما تخلص', '{x} runs out in ~{n} days'],
+  buy: ['شراء جديد', 'New purchase'], out: ['طلع من المخزون', 'Remove from stock'], purchases: ['المشتريات', 'Purchases'],
+  kind: ['شو اشتريت', 'Item'], qty: ['العدد (أكياس / علب)', 'Quantity (pouches / packs)'], per: ['بكل علبة', 'Per pack'], grams: ['غرام بالكيس', 'Grams per pouch'],
+  total: ['السعر الإجمالي', 'Total price'], currency: ['العملة', 'Currency'], rate: ['سعر الصرف (درهم لكل 1)', 'Rate (AED per 1)'],
+  source: ['من وين', 'Source'], airport: ['مطار', 'Airport'], local: ['سوق محلي', 'Local'], gift: ['هدية', 'Gift'], other: ['غير', 'Other'],
+  date: ['التاريخ', 'Date'], note: ['ملاحظة', 'Note'], unitPrice: ['سعر الوحدة', 'Unit price'],
+  reason: ['السبب', 'Reason'], gaveAway: ['أعطيته لحدا', 'Gave away'], usedBefore: ['استهلكته قبل التتبع', 'Used before tracking'], lost: ['ضاع / خرب', 'Lost / damaged'],
+  pricePouch: ['سعر الكيس (درهم)', 'Pouch price (AED)'], fifo: ['السعر من أقدم شراء بالمخزون', 'Price from the oldest purchase in stock'],
+  nothingStock: ['ما في دخان بالمخزون. سجّل شراء أول', 'No tobacco in stock. Add a purchase first'],
+  savedMonth: ['وفّرت هالشهر مقارنة بالقديم', 'Saved this month vs before'], estimate: ['تقدير لحد ما يخلص الكيس الحالي', 'Estimate until the current pouch ends'],
+  daysCounted: ['محسوب على {n} يوم مسجّل', 'Based on {n} logged days'], projected: ['لو كمّل الشهر هيك: ~{n} درهم', 'At this pace: ~{n} AED for the month'],
+  spent: ['صرفت على اللي دخنته', 'Cost of what you smoked'], oldEq: ['كان رح تصرف بالدخان القديم', 'Old habit would have cost'],
+  split: ['من وين جاي التوفير', 'Where the saving comes from'], fromLess: ['من إنك دخنت أقل', 'From smoking less'], fromRoll: ['من اللف بدل الباكيت', 'From rolling instead of packs'],
+  cpcT: ['تكلفة السيجارة', 'Cost per cigarette'], oldCig: ['السيجارة العادية', 'Regular cigarette'], yourCig: ['سيجارتك', 'Your cigarette'],
+  ofTob: ['منها دخان', 'of which tobacco'], ofPap: ['منها ورق', 'of which paper'], ofFil: ['منها فلتر', 'of which filter'],
+  airportSave: ['وفّرلك المطار', 'Airport saved you'], airportNote: ['مقارنة بسعر السوق اللي كتبته بالشراء', 'vs the local price you entered with the purchase'],
+  noPF: ['سجّل شراء ورق وفلاتر لتنحسب تكلفتهم', 'Add a papers and filters purchase so their cost is counted'],
+  paidMonth: ['دفعت مشتريات هالشهر', 'Purchases paid this month'], allTime: ['من أول التتبع', 'Since you started'],
+  months: ['الأشهر', 'Months'], noData: ['لسا ما في بيانات', 'No data yet'],
+  weekly: ['فحص أسبوعي', 'Weekly check'], addCheck: ['سجّل فحص اليوم', 'Log a check today'],
+  firstCig: ['أول سيجارة بعد الصحيان (دقيقة)', 'First cigarette after waking (min)'], hr: ['نبض الراحة الصبح', 'Resting heart rate (morning)'],
+  bp: ['الضغط', 'Blood pressure'], co: ['CO بالنفس (ppm، اختياري)', 'Breath CO (ppm, optional)'],
+  rateHint: ['من 1 (سيء) لـ 5 (ممتاز)', 'From 1 (bad) to 5 (great)'],
+  cough: ['كحة الصبح (5 = ما في)', 'Morning cough (5 = none)'], breath: ['النفس على الدرج', 'Breath on stairs'], sleep: ['النوم', 'Sleep'], taste: ['الطعم والشم', 'Taste and smell'], crave: ['الرغبة بالدخان (5 = خفيفة)', 'Craving (5 = mild)'],
+  latest: ['آخر فحص', 'Latest check'], vsFirst: ['مقارنة بأول فحص', 'vs first check'], history: ['السجل', 'History'],
+  hsi: ['مؤشر الاعتماد (HSI)', 'Heaviness of Smoking Index'], hsiNote: ['من 0 لـ 6، كل ما قل أحسن. محسوب من أول سيجارة وعدد السجائر', '0 to 6, lower is better. From time to first cigarette and cigarettes/day'],
+  settings: ['الإعدادات', 'Settings'], language: ['اللغة', 'Language'], theme: ['المظهر', 'Theme'], auto: ['تلقائي', 'Auto'], light: ['فاتح', 'Light'], dark: ['غامق', 'Dark'],
+  baseline: ['الدخان القديم (للمقارنة)', 'Old habit (baseline)'], oldPerDay: ['سجائر باليوم', 'Cigarettes per day'], cartonPrice: ['سعر الكروز', 'Carton price'], cartonCigs: ['سجائر بالكروز', 'Cigarettes per carton'],
+  calc: ['الحسابات', 'Calculations'], defCigs: ['سجائر بالكيس (تقدير لحد ما يخلص أول كيس)', 'Cigarettes per pouch (estimate until the first pouch ends)'],
+  localRef: ['سعر الكيس بالسوق المحلي (اختياري، للمقارنة)', 'Local price per pouch (optional, for comparison)'],
+  unitP: ['سعر الكيس / العلبة الواحدة', 'Price per pouch / pack'],
+  planSet: ['خطة التخفيف', 'Reduction plan'], planStart: ['بداية التتبع', 'Tracking start'], measureDays: ['أيام القياس', 'Measuring days'], stepDays: ['طول الفترة (يوم)', 'Block length (days)'], needDays: ['أيام الالتزام المطلوبة', 'Days needed on target'],
+  scoring: ['نقاط العادات', 'Habit points'], backup: ['نسخة احتياطية', 'Backup'], exportB: ['نزّل نسخة', 'Download backup'], importB: ['رجّع من نسخة', 'Restore backup'],
+  restored: ['رجعت البيانات', 'Data restored'], badFile: ['الملف مش صحيح', 'That file is not a backup'], savedT: ['انحفظ', 'Saved'],
+  sureDel: ['متأكد بدك تحذف؟', 'Delete this?'], aed: ['درهم', 'AED'],
+  dayNames: [['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'], ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']],
+  monthNames: [['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'], ['January','February','March','April','May','June','July','August','September','October','November','December']],
+};
+const t = (k, vars) => { let s = L[k] ? L[k][S.lang === 'en' ? 1 : 0] : k; if (vars) for (const v in vars) s = s.replaceAll('{' + v + '}', vars[v]); return s; };
+
+/* ---------- state ---------- */
+const todayISO = () => iso(new Date());
+const DEF = () => ({
+  v: 1, lang: 'ar', theme: 'auto',
+  habits: [], marks: {}, cigs: {}, pouches: [], purchases: [], outs: [], health: [], overrides: [],
+  cfg: { oldPerDay: 30, cartonPrice: 100, cartonCigs: 200, cigsPerPouch: 107,
+    planStart: todayISO(), measureDays: 7, stepDays: 14, needDays: 10, sFull: 3, sPart: 1, sMiss: 0 },
+});
+let S = DEF();
+const UI = { tab: 'today', day: todayISO(), month: todayISO().slice(0, 7) };
+
+/* ---------- storage (Firebase) ---------- */
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { firebaseConfig } from './config.js';
+
+// Same Firebase project and sign-in as Jaybti; Nafas keeps its data in its own document: users/<uid>/apps/nafas.
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const fsdb = initializeFirestore(fbApp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+const $ = id => document.getElementById(id);
+const refs = { uid: null, email: '' };
+let unsub = null;
+const plain = o => JSON.parse(JSON.stringify(o));
+const myDoc = () => doc(fsdb, 'users', refs.uid, 'apps', 'nafas');
+// Writes land in the local cache at once and reach the server when online, so the UI never waits on them.
+function save() { if (refs.uid) setDoc(myDoc(), plain(S)).catch(() => toast('ما انحفظ. جرب كمان مرة')); }
+
+/* ---------- sign-in screen ---------- */
+const AUTH_ERR = {
+  'auth/invalid-credential': 'الإيميل أو كلمة السر غلط',
+  'auth/wrong-password': 'كلمة السر غلط',
+  'auth/user-not-found': 'ما في حساب بهالإيميل',
+  'auth/email-already-in-use': 'في حساب بهالإيميل، سجّل دخول بدل ما تعمل حساب',
+  'auth/weak-password': 'كلمة السر لازم تكون ٦ أحرف أو أكثر',
+  'auth/invalid-email': 'الإيميل مش مكتوب صح',
+  'auth/missing-password': 'اكتب كلمة السر',
+  'auth/network-request-failed': 'ما في نت. اتصل وجرب كمان مرة',
+  'auth/too-many-requests': 'محاولات كثير، استنى شوي وجرب',
+};
+let authMode = 'in';
+function drawAuth(msg = '', ok = false) {
+  const signup = authMode === 'up';
+  $('auth').innerHTML = `<div class="auth-card">
+    <img src="icon-192.png?v=1" alt="" width="72" height="72" class="auth-logo">
+    <h2>نفس</h2><p class="auth-sub">عاداتك ودخانك بمكان واحد. ادخل بنفس حساب جيبتي</p>
+    <input id="aE" type="email" autocomplete="email" inputmode="email" placeholder="الإيميل" dir="ltr">
+    <input id="aP" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" placeholder="كلمة السر${signup ? ' (٦ أحرف أو أكثر)' : ''}" dir="ltr">
+    <p class="auth-msg ${ok ? 'ok' : ''}" id="aErr">${esc(msg)}</p>
+    <button class="auth-btn" id="aGo">${signup ? 'إنشاء حساب' : 'دخول'}</button>
+    <button class="auth-link" id="aSwitch">${signup ? 'عندك حساب؟ سجّل دخول' : 'أول مرة؟ اعمل حساب جديد'}</button>
+    ${signup ? '' : '<button class="auth-link" id="aReset">نسيت كلمة السر؟</button>'}
+  </div>`;
+}
+function showAuth(on) { $('auth').hidden = !on; if (on) drawAuth(); }
+async function authGo() {
+  const email = $('aE').value.trim(), pass = $('aP').value;
+  const btn = $('aGo'); btn.disabled = true;
+  try {
+    if (authMode === 'up') await createUserWithEmailAndPassword(auth, email, pass);
+    else await signInWithEmailAndPassword(auth, email, pass);
+  } catch (e) { $('aErr').textContent = AUTH_ERR[e.code] || 'ما زبط. جرب كمان مرة'; $('aErr').classList.remove('ok'); }
+  finally { btn.disabled = false; }
+}
+$('auth').addEventListener('click', async e => {
+  const id = e.target.closest('button')?.id;
+  if (id === 'aGo') authGo();
+  if (id === 'aSwitch') { authMode = authMode === 'up' ? 'in' : 'up'; drawAuth(); }
+  if (id === 'aReset') {
+    const email = $('aE').value.trim();
+    if (!email) { $('aErr').textContent = 'اكتب إيميلك فوق أول'; return; }
+    try { await sendPasswordResetEmail(auth, email); drawAuth('بعتنالك إيميل لتغيير كلمة السر', true); }
+    catch (err) { $('aErr').textContent = AUTH_ERR[err.code] || 'ما زبط. جرب كمان مرة'; }
+  }
+});
+$('auth').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.target.id === 'aE' || e.target.id === 'aP')) authGo(); });
+
+window.extraSettings = () => `<h3 style="margin-top:14px">${S.lang === 'en' ? 'Account' : 'الحساب'}</h3><div class="muted num">${esc(refs.email)}</div><div class="btns"><button class="btn danger" data-act="signout">${S.lang === 'en' ? 'Sign out' : 'تسجيل الخروج'}</button></div>`;
+
+function load() {
+  boot();
+  A.signout = async b => {
+    if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = S.lang === 'en' ? 'Tap again to sign out' : 'اكبس كمان مرة لتسجيل الخروج'; return; }
+    closeSheet(); await signOut(auth);
+  };
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+  onAuthStateChanged(auth, user => {
+    if (unsub) { unsub(); unsub = null; }
+    if (!user) { refs.uid = null; refs.email = ''; S = DEF(); render(); showAuth(true); return; }
+    showAuth(false);
+    refs.uid = user.uid; refs.email = user.email || '';
+    unsub = onSnapshot(myDoc(), s => { S = s.exists() ? merge(s.data()) : DEF(); render(); }, () => toast('ما قدرت أوصل لبياناتك'));
+  });
+}
+/* ---------- actions ---------- */
+function merge(o) { const d = DEF(); return { ...d, ...o, cfg: { ...d.cfg, ...(o.cfg || {}) } }; }
+const commit = () => { save(); render(); };
+
+/* ---------- dates and numbers ---------- */
+function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+const P = s => new Date(s + 'T00:00:00');
+const addD = (s, n) => { const d = P(s); d.setDate(d.getDate() + n); return iso(d); };
+const diff = (a, b) => Math.round((P(b) - P(a)) / 864e5);
+const monthEnd = m => { const [y, mo] = m.split('-').map(Number); return iso(new Date(y, mo, 0)); };
+const addM = (m, n) => { const [y, mo] = m.split('-').map(Number); const d = new Date(y, mo - 1 + n, 1); return iso(d).slice(0, 7); };
+const nameDay = s => { const d = P(s); return L.dayNames[S.lang === 'en' ? 1 : 0][d.getDay()] + ' ' + d.getDate() + ' ' + L.monthNames[S.lang === 'en' ? 1 : 0][d.getMonth()]; };
+const short = s => { const d = P(s); return d.getDate() + '/' + (d.getMonth() + 1); };
+const nameMonth = m => { const [y, mo] = m.split('-').map(Number); return L.monthNames[S.lang === 'en' ? 1 : 0][mo - 1] + ' ' + y; };
+const f = (n, d = 0) => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const N = (n, d = 0) => '<span class="num">' + f(n, d) + '</span>';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const sum = a => a.reduce((x, y) => x + y, 0);
+
+/* ---------- smoking calculations ---------- */
+const oldCigPrice = () => S.cfg.cartonPrice / S.cfg.cartonCigs;
+function smoked(d) { const c = S.cigs[d]; return c ? Math.max(0, (+c.taken || 0) - (+c.left || 0)) : null; }
+function rangeSmoked(a, b) { let n = 0, days = 0; for (let d = a; d < b; d = addD(d, 1)) { const v = smoked(d); if (v != null) { n += v; days++; } } return { n, days }; }
+const sortedPouches = () => [...S.pouches].sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : (a.at || 0) - (b.at || 0));
+function pouchInfos() {
+  const list = sortedPouches(), today = todayISO();
+  return list.map((p, i) => {
+    const end = list[i + 1] ? list[i + 1].start : null;
+    const r = rangeSmoked(p.start, end || addD(today, 1));
+    const days = end ? diff(p.start, end) : diff(p.start, today) + 1;
+    return { ...p, end, cigs: r.n, logged: r.days, days, done: !!end };
+  });
+}
+function estCigsPerPouch(infos = pouchInfos()) {
+  const done = infos.filter(p => p.done && p.cigs > 0);
+  return done.length ? sum(done.map(p => p.cigs)) / done.length : S.cfg.cigsPerPouch;
+}
+const unitsOf = pu => pu.qty * (pu.kind === 'tobacco' ? 1 : (pu.per || 1));
+const aedOf = pu => (+pu.total || 0) * (+pu.rate || 1);
+// Papers and filters are used oldest box first, so each day pays the price of the box it came from.
+let MEMO = {};
+function cumSmoked(d) {
+  const k = 'c' + d; if (k in MEMO) return MEMO[k];
+  return MEMO[k] = sum(Object.keys(S.cigs).filter(x => x >= S.cfg.planStart && x < d).map(smoked));
+}
+function unitCost(kind, d = todayISO()) {
+  const k = 'u' + kind + d; if (k in MEMO) return MEMO[k];
+  const lots = S.purchases.filter(p => p.kind === kind).sort((a, b) => a.date < b.date ? -1 : 1);
+  if (!lots.length) return MEMO[k] = 0;
+  let used = cumSmoked(d) + sum(S.outs.filter(o => o.kind === kind && o.date <= d).map(o => o.qty * (o.per || 1)));
+  for (const p of lots) { const u = unitsOf(p); if (used < u) return MEMO[k] = aedOf(p) / u; used -= u; }
+  const last = lots[lots.length - 1]; return MEMO[k] = aedOf(last) / unitsOf(last);
+}
+function pouchOn(d, infos) { let hit = null; for (const p of infos) if (p.start <= d && (!p.end || p.end > d)) hit = p; return hit; }
+function cpc(d, infos, est) {
+  const p = pouchOn(d, infos);
+  let tob, isEst = false;
+  if (p) { const n = p.done ? p.cigs : Math.max(est, p.cigs); tob = n ? p.price / n : 0; isEst = !p.done; }
+  else { const ps = S.purchases.filter(x => x.kind === 'tobacco' && aedOf(x) > 0); tob = ps.length ? sum(ps.map(aedOf)) / sum(ps.map(unitsOf)) / est : 0; isEst = true; }
+  const paper = unitCost('paper', d), filter = unitCost('filter', d);
+  return { tob, paper, filter, total: tob + paper + filter, est: isEst };
+}
+// The next pouch of a brand comes from its oldest purchase still in stock: its price and the local price he noted for it.
+function nextLot(brand) {
+  const ps = S.purchases.filter(p => p.kind === 'tobacco' && p.brand === brand).sort((a, b) => a.date < b.date ? -1 : 1);
+  let used = sum(S.outs.filter(o => o.kind === 'tobacco' && o.brand === brand).map(o => +o.qty)) + S.pouches.filter(p => p.brand === brand).length;
+  let lot = ps[ps.length - 1];
+  for (const p of ps) { if (used < p.qty) { lot = p; break; } used -= p.qty; }
+  return lot ? { price: aedOf(lot) / lot.qty, ref: +lot.localPrice || 0 } : { price: 0, ref: 0 };
+}
+function tobStock() {
+  const brands = [...new Set(S.purchases.filter(p => p.kind === 'tobacco').map(p => p.brand))];
+  return brands.map(b => ({ brand: b,
+    n: sum(S.purchases.filter(p => p.kind === 'tobacco' && p.brand === b).map(p => +p.qty))
+      - sum(S.outs.filter(o => o.kind === 'tobacco' && o.brand === b).map(o => +o.qty))
+      - S.pouches.filter(p => p.brand === b).length })).filter(x => x.n > 0 || S.pouches.some(p => p.brand === x.brand));
+}
+function unitStock(kind) {
+  const bought = sum(S.purchases.filter(p => p.kind === kind).map(unitsOf));
+  if (!bought) return null;
+  const out = sum(S.outs.filter(o => o.kind === kind).map(o => o.qty * (o.per || 1)));
+  const used = sum(Object.keys(S.cigs).filter(d => d >= S.cfg.planStart).map(smoked));
+  return bought - out - used;
+}
+function recentAvg() {
+  const vals = []; for (let i = 0, d = todayISO(); i < 14 && vals.length < 7; i++, d = addD(d, -1)) { const v = smoked(d); if (v != null) vals.push(v); }
+  if (vals.length) return sum(vals) / vals.length;
+  const tg = targetFor(todayISO()); return tg.type === 'target' && tg.n ? tg.n : 15;
+}
+function measureAvg() {
+  const c = S.cfg, r = rangeSmoked(c.planStart, addD(c.planStart, c.measureDays));
+  return r.days ? r.n / r.days : null;
+}
+function targetFor(d) {
+  const c = S.cfg;
+  if (!c.planStart || d < c.planStart) return { type: 'none' };
+  const mEnd = addD(c.planStart, c.measureDays);
+  const ov = S.overrides.filter(o => o.from <= d).sort((a, b) => a.from < b.from ? -1 : 1).pop();
+  if (!ov && d < mEnd) return { type: 'measure' };
+  let origin, cur;
+  if (ov) { origin = ov.from; cur = +ov.target; }
+  else { const a = measureAvg(); if (a == null) return { type: 'none' }; origin = mEnd; cur = Math.max(0, Math.round(a) - 1); }
+  let bs = origin;
+  while (addD(bs, c.stepDays) <= d) {
+    let ok = 0; for (let k = 0; k < c.stepDays; k++) { const v = smoked(addD(bs, k)); if (v != null && v <= cur) ok++; }
+    if (ok >= c.needDays) cur = Math.max(0, cur - 1);
+    bs = addD(bs, c.stepDays);
+  }
+  return { type: 'target', n: cur, bs, be: addD(bs, c.stepDays) };
+}
+function moneyFor(a, b) {
+  const infos = pouchInfos(), est = estCigsPerPouch(infos), op = oldCigPrice(), oldDay = S.cfg.oldPerDay * op;
+  const r = { n: 0, cigs: 0, spent: 0, old: 0, less: 0, roll: 0, tob: 0, paper: 0, filter: 0, est: false };
+  for (let d = a; d <= b; d = addD(d, 1)) {
+    const v = smoked(d); if (v == null) continue;
+    const c = cpc(d, infos, est);
+    r.n++; r.cigs += v; r.spent += v * c.total; r.old += oldDay;
+    r.less += (S.cfg.oldPerDay - v) * op; r.roll += v * (op - c.total);
+    r.tob += v * c.tob; r.paper += v * c.paper; r.filter += v * c.filter; if (c.est && v) r.est = true;
+  }
+  r.saved = r.old - r.spent;
+  return r;
+}
+
+/* ---------- habit calculations ---------- */
+function habitActive(h, d) { return h.start <= d && (!h.stopped || d < h.stopped); }
+function evalHabit(h, m) {
+  const c = S.cfg, a = m + '-01', b = monthEnd(m), today = todayISO();
+  let fu = 0, pa = 0, mi = 0;
+  for (let d = a; d <= b && d <= today; d = addD(d, 1)) {
+    if (!habitActive(h, d)) continue;
+    const k = S.marks[d] && S.marks[d][h.id];
+    if (k === 'f') fu++; else if (k === 'p') pa++; else if (k === 'm') mi++;
+  }
+  const tracked = fu + pa + mi, score = fu * c.sFull + pa * c.sPart + mi * c.sMiss, max = tracked * c.sFull;
+  return { fu, pa, mi, score, max, pct: max ? score / max * 100 : null };
+}
+
+/* ---------- icons ---------- */
+const I = {
+  today: '<path d="M4 7h16M4 7v12h16V7M4 7l1-3h14l1 3M9 12l2 2 4-4"/>',
+  habits: '<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><path d="M15 17l2 2 3-4"/>',
+  smoke: '<path d="M3 15h14v3H3zM19 15v3M21 15v3M17 11c0-2-2-2-2-4s2-2 2-4M20 11c0-2-2-2-2-4"/>',
+  money: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v.01M18 15v.01"/>',
+  health: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/><path d="M8 12h2l1-2 2 4 1-2h2"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  prev: '<path d="M9 6l6 6-6 6"/>', next: '<path d="M15 6l-6 6 6 6"/>', plus: '<path d="M12 5v14M5 12h14"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>',
+};
+const ic = (k, cls = '') => '<svg class="i ' + cls + '" viewBox="0 0 24 24" aria-hidden="true">' + I[k] + '</svg>';
+
+/* ---------- screens ---------- */
+const markCls = k => k === 'f' ? 'm-f' : k === 'p' ? 'm-p' : k === 'm' ? 'm-m' : 'm-n';
+const markLbl = k => k === 'f' ? t('full') : k === 'p' ? t('part') : k === 'm' ? t('miss') : t('untracked');
+
+function navBar(title, sub) {
+  return `<header class="nav"><div class="nav-row"><span></span><h1>${title}</h1>
+    <button class="ib" data-act="settings" aria-label="${t('settings')}">${ic('gear')}</button></div>${sub || ''}</header>`;
+}
+function dayNav() {
+  const isT = UI.day === todayISO();
+  return `<div class="sub"><button class="ib" data-act="dayShift" data-n="-1" aria-label="-1">${ic('prev', 'flip')}</button>
+    <span class="lbl">${nameDay(UI.day)}</span>
+    <button class="ib" data-act="dayShift" data-n="1" aria-label="+1" ${isT ? 'style="visibility:hidden"' : ''}>${ic('next', 'flip')}</button></div>
+    ${isT ? '' : `<div class="sub"><button class="chip" data-act="dayToday">${t('backToday')}</button></div>`}`;
+}
+function monthNav() {
+  return `<div class="sub"><button class="ib" data-act="monthShift" data-n="-1" aria-label="-1">${ic('prev', 'flip')}</button>
+    <span class="lbl">${nameMonth(UI.month)}</span>
+    <button class="ib" data-act="monthShift" data-n="1" aria-label="+1">${ic('next', 'flip')}</button></div>`;
+}
+
+function scrToday() {
+  const d = UI.day, c = S.cigs[d], tg = targetFor(d), v = smoked(d);
+  let tgLine = tg.type === 'measure' ? t('measure') : tg.type === 'target' ? `${t('target')}: ${N(tg.n)} · ${t('takeHint', { n: tg.n })}` : t('noPlan');
+  let status = '';
+  if (v != null && tg.type === 'target') status = v <= tg.n ? `<span class="ok">${t('within')}</span>` : `<span class="over">${t('overBy', { n: v - tg.n })}</span>`;
+  const cig = `<section class="card"><h2>${t('cigsToday')}<small>${status}</small></h2>
+    <div class="muted">${tgLine}</div>
+    <div class="trio" style="margin-top:8px">
+      <div><div class="muted">${t('taken')}</div><div class="step"><button data-act="cigStep" data-f="taken" data-n="-1">−</button><input id="cTaken" class="num" inputmode="numeric" value="${c ? c.taken : ''}" placeholder="0" data-change="cigInput"><button data-act="cigStep" data-f="taken" data-n="1">+</button></div></div>
+      <div><div class="muted">${t('left')}</div><div class="step"><button data-act="cigStep" data-f="left" data-n="-1">−</button><input id="cLeft" class="num" inputmode="numeric" value="${c ? c.left : ''}" placeholder="0" data-change="cigInput"><button data-act="cigStep" data-f="left" data-n="1">+</button></div></div>
+      <div><div class="muted">${t('smoked')}</div><div class="big num">${v == null ? '—' : v}</div></div>
+    </div>
+    ${c ? `<div class="btns"><button class="btn sec" data-act="cigClear">${t('clear')}</button></div>` : `<div class="muted" style="margin-top:8px;text-align:center">${t('notLogged')}</div>`}</section>`;
+
+  const infos = pouchInfos(), p = pouchOn(d, infos);
+  const warns = [];
+  const avg = recentAvg();
+  for (const k of ['filter', 'paper']) { const s = unitStock(k); if (s != null && s / avg < 5) warns.push(t('lowStock', { x: t(k), n: Math.max(0, Math.floor(s / avg)) })); }
+  const tobLeft = sum(tobStock().map(x => x.n)) * estCigsPerPouch(infos) + (p && !p.done ? Math.max(0, estCigsPerPouch(infos) - p.cigs) : 0);
+  if (S.purchases.some(x => x.kind === 'tobacco') && tobLeft / avg < 5) warns.push(t('lowStock', { x: t('tobacco'), n: Math.max(0, Math.floor(tobLeft / avg)) }));
+  const pouch = `<section class="card"><h2>${t('pouchNow')}${p ? `<small>${esc(p.brand)}</small>` : ''}</h2>
+    ${p ? `<div class="row"><span>${t('dayN', { n: diff(p.start, d) + 1 })}</span><span class="muted">${t('soFar', { n: p.done ? p.cigs : p.cigs })}</span></div>` : `<div class="muted">${t('noPouch')}</div>`}
+    ${warns.map(w => `<div class="warn">${w}</div>`).join('')}
+    <div class="btns"><button class="btn" data-act="newPouch">${t('newPouch')}</button></div></section>`;
+
+  const hs = S.habits.filter(h => habitActive(h, d));
+  const habits = `<section class="card"><h2>${t('yourHabits')}<small>${t('tapHint')}</small></h2>
+    ${hs.length ? hs.map(h => { const k = S.marks[d] && S.marks[d][h.id];
+      return `<div class="row tap" data-act="mark" data-h="${h.id}" data-d="${d}"><span>${esc(h.name)}</span><span style="display:flex;align-items:center;gap:8px"><span class="muted">${markLbl(k)}</span><span class="dot ${markCls(k)}"></span></span></div>`; }).join('')
+      : `<div class="empty muted">${t('noHabits')}</div>`}
+    <div class="btns"><button class="btn sec" data-act="habitNew">${ic('plus')} ${t('addHabit')}</button></div></section>`;
+  return navBar(t('today'), dayNav()) + `<main class="wrap">${cig}${pouch}${habits}</main>`;
+}
+
+function scrHabits() {
+  const m = UI.month, a = m + '-01', b = monthEnd(m), today = todayISO();
+  const hs = S.habits.filter(h => h.start <= b && (!h.stopped || h.stopped > a));
+  const legend = `<section class="card"><div class="legend">
+    <span><i class="m-f"></i>${t('full')} ${S.cfg.sFull}</span><span><i class="m-p"></i>${t('part')} ${S.cfg.sPart}</span>
+    <span><i class="m-m"></i>${t('miss')} ${S.cfg.sMiss}</span><span><i></i>${t('untracked')}</span></div></section>`;
+  const cards = hs.map(h => {
+    const e = evalHabit(h, m); let cells = '';
+    for (let d = a; d <= b; d = addD(d, 1)) {
+      const n = P(d).getDate();
+      if (!habitActive(h, d) || d > today) { cells += `<span class="dot m-x num">${n}</span>`; continue; }
+      const k = S.marks[d] && S.marks[d][h.id];
+      cells += `<button class="dot ${markCls(k)} num" data-act="mark" data-h="${h.id}" data-d="${d}" aria-label="${n}: ${markLbl(k)}">${n}</button>`;
+    }
+    return `<section class="card"><h2>${esc(h.name)}<small>${e.pct == null ? '—' : N(e.pct, 1) + '%'}</small></h2><div class="days">${cells}</div></section>`;
+  }).join('');
+  const table = hs.length ? `<section class="card"><h2>${t('evalT')}</h2><div class="scroll"><table>
+    <tr><th>${t('habit')}</th><th class="n">${t('full')}</th><th class="n">${t('part')}</th><th class="n">${t('miss')}</th><th class="n">${t('score')}</th><th class="n">${t('pct')}</th></tr>
+    ${hs.map(h => { const e = evalHabit(h, m); return `<tr><td>${esc(h.name)}</td><td class="n">${N(e.fu)}</td><td class="n">${N(e.pa)}</td><td class="n">${N(e.mi)}</td><td class="n"><span class="num">${e.score}/${e.max}</span></td><td class="n">${e.pct == null ? '—' : N(e.pct, 1) + '%'}</td></tr>`; }).join('')}
+    </table></div><div class="muted" style="margin-top:8px">${t('evalNote')}</div></section>` : `<section class="card"><div class="empty muted">${t('noHabits')}</div></section>`;
+  const manage = `<section class="card"><div class="btns" style="margin:0"><button class="btn sec" data-act="habitNew">${ic('plus')} ${t('addHabit')}</button><button class="btn sec" data-act="habitList">${t('manage')}</button></div></section>`;
+  return navBar(t('habits'), monthNav()) + `<main class="wrap">${legend}${cards}${table}${manage}</main>`;
+}
+
+function scrSmoke() {
+  const today = todayISO(), tg = targetFor(today), c = S.cfg, ma = measureAvg();
+  let tgBody = tg.type === 'measure' ? `<div class="big">${t('measure')}</div>` : tg.type === 'target' ? `<div class="big num">${tg.n}</div>` : `<div class="muted">${t('noPlan')}</div>`;
+  if (tg.type === 'target') {
+    let ok = 0, n = 0; for (let d = tg.bs; d <= today && d < tg.be; d = addD(d, 1)) { n++; const v = smoked(d); if (v != null && v <= tg.n) ok++; }
+    tgBody += `<div class="muted">${t('blockProg', { a: ok, b: c.stepDays, k: c.needDays })} · ${short(tg.bs)} ← ${short(addD(tg.be, -1))}</div>`;
+  }
+  const target = `<section class="card hero"><h2 style="color:var(--gold)">${t('target')}<small class="muted">${ma != null ? t('measureAvg') + ': ' + N(ma, 1) : ''}</small></h2>${tgBody}
+    <div class="muted" style="margin-top:6px">${t('planText', { s: c.stepDays, k: c.needDays })}</div>
+    <div class="btns"><button class="btn sec" style="color:var(--ivory);border-color:var(--gold)" data-act="override">${t('setTarget')}</button></div></section>`;
+
+  let bars = '', lbls = '', max = 1; const days = [];
+  for (let i = 13; i >= 0; i--) { const d = addD(today, -i); const v = smoked(d), g = targetFor(d); days.push({ d, v, g: g.type === 'target' ? g.n : null }); if (v != null) max = Math.max(max, v); if (g.type === 'target') max = Math.max(max, g.n); }
+  max = Math.ceil(max * 1.1);
+  for (const x of days) { bars += `<div class="b ${x.v == null ? 'none' : x.g != null && x.v > x.g ? 'over' : ''}" style="height:${x.v == null ? 2 : x.v / max * 100}%" title="${short(x.d)}: ${x.v ?? '—'}"></div>`; lbls += `<span class="num">${P(x.d).getDate()}</span>`; }
+  const tl = days[days.length - 1].g;
+  const chart = `<section class="card"><h2>${t('last14')}</h2><div class="bars">${bars}${tl != null ? `<div class="tl" style="bottom:${tl / max * 100}%"></div>` : ''}</div><div class="barlbl">${lbls}</div></section>`;
+
+  const infos = pouchInfos(), est = estCigsPerPouch(infos);
+  const log = `<section class="card"><h2>${t('pouchLog')}<small>${infos.length}</small></h2>
+    ${infos.length ? `<div class="scroll"><table><tr><th>#</th><th>${t('brand')}</th><th class="n">${t('start')}</th><th class="n">${t('daysL')}</th><th class="n">${t('cigs')}</th><th class="n">${t('perDay')}</th><th class="n">${t('gPer')}</th><th class="n">${t('perCig')}</th></tr>
+    ${infos.map((p, i) => { const n = p.done ? p.cigs : null; return `<tr class="tap" data-act="pouchEdit" data-id="${p.id}"><td class="num">${i + 1}</td><td>${esc(p.brand)}</td><td class="n num">${short(p.start)}</td><td class="n">${p.done ? N(p.days) : '<span class="muted">' + t('open') + '</span>'}</td><td class="n">${N(p.cigs)}</td><td class="n">${p.logged ? N(p.cigs / p.logged, 1) : '—'}</td><td class="n">${n ? N((p.grams || 50) / n, 2) : '—'}</td><td class="n">${n ? N(p.price / n + unitCost('paper', p.start) + unitCost('filter', p.start), 2) : '—'}</td></tr>`; }).reverse().join('')}
+    </table></div><div class="muted" style="margin-top:8px">${t('pouchNote')}</div>` : `<div class="empty muted">${t('noData')}</div>`}
+    <div class="btns"><button class="btn" data-act="newPouch">${t('newPouch')}</button></div></section>`;
+
+  const avg = recentAvg(), ts = tobStock(), cur = pouchOn(today, infos);
+  const unitRow = k => { const s = unitStock(k); return s == null ? '' : `<div class="row"><span>${t(k)}</span><span>${N(Math.max(0, s))}<span class="muted">· ${t('daysLeft', { n: f(Math.max(0, s / avg)) })}</span></span></div>`; };
+  const tobDays = (sum(ts.map(x => x.n)) * est + (cur && !cur.done ? Math.max(0, est - cur.cigs) : 0)) / avg;
+  const stock = `<section class="card"><h2>${t('stock')}${ts.length ? `<small>${t('tobacco')}: ${t('daysLeft', { n: f(tobDays) })}</small>` : ''}</h2>
+    ${ts.map(x => `<div class="row"><span>${esc(x.brand)}</span><span>${N(x.n)} <span class="muted">${t('pouches')}</span></span></div>`).join('')}
+    ${unitRow('paper')}${unitRow('filter')}
+    ${!ts.length && unitStock('paper') == null && unitStock('filter') == null ? `<div class="empty muted">${t('noData')}</div>` : ''}
+    <div class="btns"><button class="btn" data-act="buy">${ic('plus')} ${t('buy')}</button><button class="btn sec" data-act="out">${t('out')}</button></div></section>`;
+
+  const moves = [...S.purchases.map(p => ({ ...p, _t: 'buy' })), ...S.outs.map(o => ({ ...o, _t: 'out' }))].sort((a, b) => a.date < b.date ? 1 : -1);
+  const kindName = k => k === 'tobacco' ? t('tobacco') : t(k);
+  const buys = moves.length ? `<section class="card"><h2>${t('purchases')}</h2>${moves.map(p => p._t === 'buy'
+      ? `<div class="row tap" data-act="buyEdit" data-id="${p.id}"><span>${kindName(p.kind)}${p.brand ? ' · ' + esc(p.brand) : ''} × ${N(p.qty)}<br><span class="muted">${short(p.date)} · ${t(p.source || 'other')}</span></span><span>${N(aedOf(p), 2)} <span class="muted">${t('aed')}</span></span></div>`
+      : `<div class="row tap" data-act="outEdit" data-id="${p.id}"><span>− ${kindName(p.kind)}${p.brand ? ' · ' + esc(p.brand) : ''} × ${N(p.qty)}<br><span class="muted">${short(p.date)} · ${t(p.reason)}</span></span><span></span></div>`).join('')}</section>` : '';
+  return navBar(t('smoke')) + `<main class="wrap">${target}${chart}${log}${stock}${buys}</main>`;
+}
+
+function scrMoney() {
+  const m = UI.month, a = m + '-01', b = monthEnd(m), today = todayISO();
+  const r = moneyFor(a < S.cfg.planStart ? S.cfg.planStart : a, b < today ? b : today);
+  const dim = P(b).getDate(), op = oldCigPrice();
+  const hero = `<section class="card hero"><div class="muted">${t('savedMonth')} (${N(S.cfg.oldPerDay * op * dim)} ${t('aed')})</div>
+    <div class="big">${r.n ? N(r.saved) + ' ' + t('aed') : '—'}</div>
+    <div class="muted">${r.n ? t('daysCounted', { n: r.n }) + (r.n < dim ? ' · ' + t('projected', { n: f(r.saved / r.n * dim) }) : '') : t('noData')}</div>
+    ${r.est ? `<div class="muted">${t('estimate')}</div>` : ''}</section>`;
+  if (!r.n) return navBar(t('money'), monthNav()) + `<main class="wrap">${hero}${allTimeCard()}</main>`;
+  const lines = `<section class="card">
+    <div class="row"><span>${t('spent')}</span><span>${N(r.spent, 1)} ${t('aed')}</span></div>
+    <div class="row"><span>${t('oldEq')}</span><span>${N(r.old, 1)} ${t('aed')}</span></div></section>`;
+  const split = `<section class="card"><h2>${t('split')}</h2>
+    <div class="row"><span>${t('fromLess')}</span><span>${N(r.less, 1)} ${t('aed')}</span></div>
+    <div class="row"><span>${t('fromRoll')}</span><span>${N(r.roll, 1)} ${t('aed')}</span></div></section>`;
+  const noPF = !S.purchases.some(p => p.kind === 'paper') || !S.purchases.some(p => p.kind === 'filter') ? `<div class="warn">${t('noPF')}</div>` : '';
+  const per = r.cigs ?`<section class="card"><h2>${t('cpcT')}<small>${t('aed')}</small></h2>
+    <div class="row"><span>${t('oldCig')}</span><span>${N(op, 2)}</span></div>
+    <div class="row"><span><b>${t('yourCig')}</b></span><span><b>${N(r.spent / r.cigs, 2)}</b></span></div>
+    <div class="row"><span class="muted">${t('ofTob')}</span><span class="muted">${N(r.tob / r.cigs, 3)}</span></div>
+    <div class="row"><span class="muted">${t('ofPap')}</span><span class="muted">${N(r.paper / r.cigs, 3)}</span></div>
+    <div class="row"><span class="muted">${t('ofFil')}</span><span class="muted">${N(r.filter / r.cigs, 3)}</span></div>${noPF}</section>` : '';
+  const opened = S.pouches.filter(p => p.start >= a && p.start <= b && p.ref > 0);
+  const air = opened.length ? `<section class="card"><div class="row"><span>${t('airportSave')}<br><span class="muted">${t('airportNote')}</span></span><span>${N(sum(opened.map(p => p.ref - p.price)), 1)} ${t('aed')}</span></div></section>` : '';  const paid = sum(S.purchases.filter(p => p.date >= a && p.date <= b).map(aedOf));
+  const cash = `<section class="card"><div class="row"><span>${t('paidMonth')}</span><span>${N(paid, 1)} ${t('aed')}</span></div></section>`;
+  return navBar(t('money'), monthNav()) + `<main class="wrap">${hero}${lines}${split}${per}${air}${cash}${allTimeCard()}</main>`;
+}
+function allTimeCard() {
+  const today = todayISO(), first = S.cfg.planStart;
+  if (first > today) return '';
+  const all = moneyFor(first, today);
+  if (!all.n) return '';
+  let rows = '', m = today.slice(0, 7);
+  while (m >= first.slice(0, 7)) {
+    const a = m + '-01' < first ? first : m + '-01', b = monthEnd(m) < today ? monthEnd(m) : today, r = moneyFor(a, b);
+    if (r.n) rows += `<div class="row tap" data-act="goMonth" data-m="${m}"><span>${nameMonth(m)}<br><span class="muted">${N(r.cigs / r.n, 1)} ${t('perDay')}</span></span><span>${N(r.saved)} ${t('aed')}</span></div>`;
+    m = addM(m, -1);
+  }
+  return `<section class="card"><h2>${t('allTime')}<small>${N(all.saved)} ${t('aed')}</small></h2>${rows}</section>`;
+}
+
+const HF = [['cough', 'cough'], ['breath', 'breath'], ['sleep', 'sleep'], ['taste', 'taste'], ['crave', 'crave']];
+function hsi(e, d) {
+  if (e.first == null || e.first === '') return null;
+  const mn = +e.first, fs = mn <= 5 ? 3 : mn <= 30 ? 2 : mn <= 60 ? 1 : 0;
+  const r = rangeSmoked(addD(d, -6), addD(d, 1)); if (!r.days) return null;
+  const cpd = r.n / r.days, cs = cpd <= 10 ? 0 : cpd <= 20 ? 1 : cpd <= 30 ? 2 : 3;
+  return fs + cs;
+}
+function scrHealth() {
+  const hs = [...S.health].sort((a, b) => a.date < b.date ? -1 : 1), last = hs[hs.length - 1], first = hs[0];
+  const val = (e, k) => e && e[k] !== '' && e[k] != null ? +e[k] : null;
+  const ch = (k, better) => { const a = val(first, k), b = val(last, k); if (a == null || b == null || hs.length < 2) return ''; const dlt = b - a; if (!dlt) return ''; const good = better === 'up' ? dlt > 0 : dlt < 0; return ` <span class="${good ? 'ok' : 'over'} num">(${dlt > 0 ? '+' : ''}${f(dlt, 0)})</span>`; };
+  let latest = `<section class="card"><div class="empty muted">${t('noData')}</div></section>`;
+  if (last) {
+    const h1 = hsi(last, last.date);
+    latest = `<section class="card"><h2>${t('latest')}<small>${short(last.date)}${hs.length > 1 ? ' · ' + t('vsFirst') : ''}</small></h2>
+      <div class="row"><span>${t('firstCig')}</span><span>${N(val(last, 'first'))}${ch('first', 'up')}</span></div>
+      <div class="row"><span>${t('hr')}</span><span>${N(val(last, 'hr'))}${ch('hr', 'down')}</span></div>
+      <div class="row"><span>${t('bp')}</span><span class="num">${val(last, 'sys') != null ? f(val(last, 'sys')) + '/' + f(val(last, 'dia')) : '—'}</span></div>
+      ${val(last, 'co') != null ? `<div class="row"><span>${t('co')}</span><span>${N(val(last, 'co'))}${ch('co', 'down')}</span></div>` : ''}
+      ${HF.map(([k]) => `<div class="row"><span>${t(k)}</span><span>${N(val(last, k))}<span class="muted">/5</span>${ch(k, 'up')}</span></div>`).join('')}
+      ${h1 != null ? `<div class="row"><span>${t('hsi')}<br><span class="muted">${t('hsiNote')}</span></span><span class="big num">${h1}</span></div>` : ''}</section>`;
+  }
+  const hist = hs.length ? `<section class="card"><h2>${t('history')}</h2>${[...hs].reverse().map(e => `<div class="row tap" data-act="healthEdit" data-id="${e.id}"><span>${nameDay(e.date)}</span><span class="muted num">${e.hr ? '♥ ' + e.hr : ''}</span></div>`).join('')}</section>` : '';
+  return navBar(t('health')) + `<main class="wrap"><section class="card"><h2>${t('weekly')}</h2><div class="muted">${t('rateHint')}</div><div class="btns"><button class="btn" data-act="healthNew">${ic('plus')} ${t('addCheck')}</button></div></section>${latest}${hist}</main>`;
+}
+
+const SCREENS = { today: scrToday, habits: scrHabits, smoke: scrSmoke, money: scrMoney, health: scrHealth };
+function render() {
+  MEMO = {};
+  document.documentElement.lang = S.lang; document.documentElement.dir = S.lang === 'en' ? 'ltr' : 'rtl';
+  if (S.theme === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = S.theme;
+  document.title = t('app');
+  const tabs = ['today', 'habits', 'smoke', 'money', 'health'].map(k => `<button class="${UI.tab === k ? 'on' : ''}" data-act="tab" data-t="${k}">${ic(k)}${t(k)}</button>`).join('');
+  document.getElementById('app').innerHTML = SCREENS[UI.tab]() + `<nav class="tabs"><div class="in">${tabs}</div></nav>`;
+}
+
+/* ---------- sheets ---------- */
+function openSheet(title, body) {
+  document.getElementById('sheet').innerHTML = `<div class="ov" data-act="closeBg"><div class="sh" role="dialog" aria-label="${esc(title)}"><h3>${title}<button class="ib" data-act="close" aria-label="${t('cancel')}">${ic('x')}</button></h3>${body}</div></div>`;
+}
+const closeSheet = () => { document.getElementById('sheet').innerHTML = ''; };
+const val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+const fld = (lbl, input) => `<div class="fld"><label>${lbl}</label>${input}</div>`;
+const inp = (id, v = '', type = 'text', extra = '') => `<input id="${id}" type="${type}" value="${esc(v)}" ${type === 'number' ? 'inputmode="decimal" step="any"' : ''} ${extra}>`;
+const sel = (id, opts, v) => `<select id="${id}">${opts.map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+function toast(msg) { const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg; document.body.appendChild(el); setTimeout(() => el.remove(), 1800); }
+const brandList = () => `<datalist id="brands">${[...new Set(['Pueblo', 'Drum', 'Amber Leaf', 'Golden Virginia', 'American Spirit', ...S.purchases.filter(p => p.brand).map(p => p.brand)])].map(b => `<option value="${esc(b)}">`).join('')}</datalist>`;
+const CUR = [['AED', 1], ['JOD', 5.18], ['USD', 3.6725], ['EUR', 4.0], ['SAR', 0.979], ['GBP', 4.7], ['TRY', 0.09]];
+
+/* ---------- actions ---------- */
+function setCig(taken, left) {
+  if (taken === '' && left === '') delete S.cigs[UI.day];
+  else S.cigs[UI.day] = { taken: Math.max(0, parseInt(taken) || 0), left: Math.max(0, parseInt(left) || 0) };
+  commit();
+}
+const A = {
+  tab: e => { UI.tab = e.dataset.t; render(); window.scrollTo(0, 0); },
+  dayShift: e => { const n = addD(UI.day, +e.dataset.n); if (n <= todayISO()) { UI.day = n; render(); } },
+  dayToday: () => { UI.day = todayISO(); render(); },
+  monthShift: e => { UI.month = addM(UI.month, +e.dataset.n); render(); },
+  goMonth: e => { UI.month = e.dataset.m; render(); window.scrollTo(0, 0); },
+  cigStep: e => {
+    const c = S.cigs[UI.day] || { taken: 0, left: 0 }, k = e.dataset.f;
+    if (!S.cigs[UI.day] && k === 'taken' && +e.dataset.n > 0) { const tg = targetFor(UI.day); c.taken = tg.type === 'target' ? tg.n : 0; }
+    c[k] = Math.max(0, (+c[k] || 0) + +e.dataset.n); setCig(c.taken, c.left);
+  },
+  cigInput: () => setCig(val('cTaken'), val('cLeft')),
+  cigClear: () => { delete S.cigs[UI.day]; commit(); },
+  mark: e => {
+    const d = e.dataset.d, h = e.dataset.h, cur = S.marks[d] && S.marks[d][h];
+    const nx = { undefined: 'f', f: 'p', p: 'm', m: undefined }[cur];
+    S.marks[d] = S.marks[d] || {};
+    if (nx) S.marks[d][h] = nx; else delete S.marks[d][h];
+    if (!Object.keys(S.marks[d]).length) delete S.marks[d];
+    commit();
+  },
+  habitNew: () => openSheet(t('addHabit'), fld(t('name'), inp('hName', '', 'text', 'autofocus')) + fld(t('startDate'), inp('hStart', UI.tab === 'today' ? UI.day : todayISO(), 'date')) + `<button class="btn w" data-act="habitSave">${t('save')}</button>`),
+  habitList: () => openSheet(t('manage'), S.habits.map(h => `<div class="row tap" data-act="habitEdit" data-id="${h.id}"><span>${esc(h.name)}</span><span class="muted">${h.stopped ? t('stopped') : short(h.start)}</span></div>`).join('') || `<div class="empty muted">${t('noHabits')}</div>`),
+  habitEdit: e => { const h = S.habits.find(x => x.id === e.dataset.id); openSheet(esc(h.name), fld(t('name'), inp('hName', h.name)) + fld(t('startDate'), inp('hStart', h.start, 'date')) +
+    `<button class="btn w" data-act="habitSave" data-id="${h.id}">${t('save')}</button><div class="btns">${h.stopped ? `<button class="btn sec" data-act="habitStop" data-id="${h.id}">${t('restore')}</button>` : `<button class="btn sec" data-act="habitStop" data-id="${h.id}">${t('archive')}</button>`}<button class="btn danger" data-act="habitDel" data-id="${h.id}">${t('del')}</button></div>`); },
+  habitSave: e => {
+    const name = val('hName'), start = val('hStart') || todayISO(); if (!name) return;
+    const h = e.dataset.id && S.habits.find(x => x.id === e.dataset.id);
+    if (h) { h.name = name; h.start = start; } else S.habits.push({ id: uid(), name, start });
+    closeSheet(); commit();
+  },
+  habitStop: e => { const h = S.habits.find(x => x.id === e.dataset.id); h.stopped = h.stopped ? undefined : todayISO(); if (!h.stopped) delete h.stopped; closeSheet(); commit(); },
+  habitDel: e => { if (!confirm(t('sureDel'))) return; S.habits = S.habits.filter(x => x.id !== e.dataset.id); for (const d in S.marks) { delete S.marks[d][e.dataset.id]; if (!Object.keys(S.marks[d]).length) delete S.marks[d]; } closeSheet(); commit(); },
+
+  newPouch: () => {
+    const st = tobStock().filter(x => x.n > 0);
+    if (!st.length) { openSheet(t('newPouch'), `<div class="empty muted">${t('nothingStock')}</div><button class="btn w" data-act="buy">${t('buy')}</button>`); return; }
+    openSheet(t('newPouch'), fld(t('brand'), `<select id="pBrand" data-change="pouchBrand">${st.map(x => `<option value="${esc(x.brand)}">${esc(x.brand)} (${x.n})</option>`).join('')}</select>`) +
+      fld(t('date'), inp('pStart', UI.tab === 'today' ? UI.day : todayISO(), 'date')) +
+      fld(t('pricePouch') + ' · ' + t('fifo'), inp('pPrice', nextLot(st[0].brand).price.toFixed(2), 'number')) +
+      `<button class="btn w" data-act="pouchSave">${t('save')}</button>`);
+  },
+  pouchBrand: () => { document.getElementById('pPrice').value = nextLot(val('pBrand')).price.toFixed(2); },
+  pouchSave: e => {
+    const id = e.dataset.id, p = id && S.pouches.find(x => x.id === id);
+    const data = { brand: val('pBrand'), start: val('pStart') || todayISO(), price: +val('pPrice') || 0 };
+    if (p) Object.assign(p, data); else S.pouches.push({ id: uid(), at: Date.now(), grams: 50, ref: nextLot(data.brand).ref, ...data });
+    closeSheet(); commit(); toast(t('savedT'));
+  },
+  pouchEdit: e => { const p = S.pouches.find(x => x.id === e.dataset.id); openSheet(esc(p.brand),
+    fld(t('brand'), `<input id="pBrand" list="brands" value="${esc(p.brand)}">${brandList()}`) + fld(t('date'), inp('pStart', p.start, 'date')) + fld(t('pricePouch'), inp('pPrice', p.price, 'number')) +
+    `<button class="btn w" data-act="pouchSave" data-id="${p.id}">${t('save')}</button><div class="btns"><button class="btn danger" data-act="pouchDel" data-id="${p.id}">${t('del')}</button></div>`); },
+  pouchDel: e => { if (!confirm(t('sureDel'))) return; S.pouches = S.pouches.filter(x => x.id !== e.dataset.id); closeSheet(); commit(); },
+
+  buy: e => A.buyForm(null),
+  buyEdit: e => A.buyForm(S.purchases.find(x => x.id === e.dataset.id)),
+  buyForm: p => {
+    p = p || { date: todayISO(), kind: 'tobacco', brand: '', qty: 1, per: 50, total: '', cur: 'AED', rate: 1, source: 'local' };
+    openSheet(t('buy'), fld(t('kind'), sel('bKind', [['tobacco', t('tobacco')], ['paper', t('paper')], ['filter', t('filter')]], p.kind).replace('<select', '<select data-change="buyKind"')) +
+      `<div id="bBrandW">${fld(t('brand'), `<input id="bBrand" list="brands" value="${esc(p.brand || '')}">${brandList()}`)}</div>` +
+      `<div class="grid2">${fld(t('qty'), inp('bQty', p.qty, 'number', 'data-input="buyUnit"'))}<div id="bPerW">${fld(p.kind === 'tobacco' ? t('grams') : t('per'), inp('bPer', p.per, 'number'))}</div></div>` +
+      `<div class="grid2">${fld(t('unitP'), inp('bUnit', p.total !== '' && p.qty ? +(p.total / p.qty).toFixed(2) : '', 'number', 'data-input="buyUnit"'))}${fld(t('total'), inp('bTotal', p.total, 'number', 'data-input="buyTotal"'))}</div>` +
+      `<div class="grid2">${fld(t('currency'), sel('bCur', CUR.map(([c]) => [c, c]), p.cur).replace('<select', '<select data-change="buyCur"'))}<div id="bRateW" ${p.cur === 'AED' ? 'hidden' : ''}>${fld(t('rate'), inp('bRate', p.rate, 'number'))}</div></div>` +
+      `<div class="grid2">${fld(t('source'), sel('bSrc', [['airport', t('airport')], ['local', t('local')], ['gift', t('gift')], ['other', t('other')]], p.source))}${fld(t('date'), inp('bDate', p.date, 'date'))}</div>` +
+      `<div id="bLocalW">${fld(t('localRef'), inp('bLocal', p.localPrice || '', 'number'))}</div>` +
+      `<button class="btn w" data-act="buySave" ${p.id ? `data-id="${p.id}"` : ''}>${t('save')}</button>` +
+      (p.id ? `<div class="btns"><button class="btn danger" data-act="buyDel" data-id="${p.id}">${t('del')}</button></div>` : ''));
+    A.buyKind(true);
+  },
+  buyKind: keep => {
+    const k = val('bKind'); document.getElementById('bBrandW').hidden = k !== 'tobacco'; document.getElementById('bLocalW').hidden = k !== 'tobacco';
+    document.querySelector('#bPerW label').textContent = k === 'tobacco' ? t('grams') : t('per');
+    if (keep !== true) document.getElementById('bPer').value = k === 'tobacco' ? 50 : k === 'paper' ? 60 : 120;
+  },
+  buyUnit: () => { const q = +val('bQty'), u = val('bUnit'); if (q && u !== '') document.getElementById('bTotal').value = +(q * +u).toFixed(2); },
+  buyTotal: () => { const q = +val('bQty'), tt = val('bTotal'); if (q && tt !== '') document.getElementById('bUnit').value = +(+tt / q).toFixed(2); },
+  buyCur: () => { const c = val('bCur'); document.getElementById('bRateW').hidden = c === 'AED'; document.getElementById('bRate').value = (CUR.find(x => x[0] === c) || [0, 1])[1]; },
+  buySave: e => {
+    const kind = val('bKind'), qty = +val('bQty'); if (!qty || qty <= 0) return;
+    if (kind === 'tobacco' && !val('bBrand')) { document.getElementById('bBrand').focus(); return; }
+    const data = { kind, brand: kind === 'tobacco' ? val('bBrand') : '', qty, per: +val('bPer') || 1, total: +val('bTotal') || 0, cur: val('bCur'), rate: val('bCur') === 'AED' ? 1 : (+val('bRate') || 1), source: val('bSrc'), date: val('bDate') || todayISO(), localPrice: kind === 'tobacco' ? (+val('bLocal') || 0) : 0 };
+    const p = e.dataset.id && S.purchases.find(x => x.id === e.dataset.id);
+    if (p) Object.assign(p, data); else S.purchases.push({ id: uid(), ...data });
+    closeSheet(); commit(); toast(t('savedT'));
+  },
+  buyDel: e => { if (!confirm(t('sureDel'))) return; S.purchases = S.purchases.filter(x => x.id !== e.dataset.id); closeSheet(); commit(); },
+  out: () => A.outForm(null),
+  outEdit: e => A.outForm(S.outs.find(x => x.id === e.dataset.id)),
+  outForm: o => {
+    o = o || { kind: 'tobacco', brand: '', qty: 1, per: 60, reason: 'gaveAway', date: todayISO() };
+    openSheet(t('out'), fld(t('kind'), sel('oKind', [['tobacco', t('tobacco')], ['paper', t('paper')], ['filter', t('filter')]], o.kind)) +
+      fld(t('brand'), `<input id="oBrand" list="brands" value="${esc(o.brand || '')}">${brandList()}`) +
+      `<div class="grid2">${fld(t('qty'), inp('oQty', o.qty, 'number'))}${fld(t('per'), inp('oPer', o.per, 'number'))}</div>` +
+      `<div class="grid2">${fld(t('reason'), sel('oReason', [['gaveAway', t('gaveAway')], ['usedBefore', t('usedBefore')], ['lost', t('lost')]], o.reason))}${fld(t('date'), inp('oDate', o.date, 'date'))}</div>` +
+      `<button class="btn w" data-act="outSave" ${o.id ? `data-id="${o.id}"` : ''}>${t('save')}</button>` + (o.id ? `<div class="btns"><button class="btn danger" data-act="outDel" data-id="${o.id}">${t('del')}</button></div>` : ''));
+  },
+  outSave: e => {
+    const kind = val('oKind'), qty = +val('oQty'); if (!qty) return;
+    const data = { kind, brand: kind === 'tobacco' ? val('oBrand') : '', qty, per: kind === 'tobacco' ? 1 : (+val('oPer') || 1), reason: val('oReason'), date: val('oDate') || todayISO() };
+    const o = e.dataset.id && S.outs.find(x => x.id === e.dataset.id);
+    if (o) Object.assign(o, data); else S.outs.push({ id: uid(), ...data });
+    closeSheet(); commit();
+  },
+  outDel: e => { if (!confirm(t('sureDel'))) return; S.outs = S.outs.filter(x => x.id !== e.dataset.id); closeSheet(); commit(); },
+
+  override: () => openSheet(t('setTarget'), fld(t('target'), inp('ovT', (targetFor(todayISO()).n ?? ''), 'number')) + fld(t('fromDate'), inp('ovD', todayISO(), 'date')) +
+    `<button class="btn w" data-act="overrideSave">${t('save')}</button>` +
+    (S.overrides.length ? `<h3 style="margin-top:14px">${t('manualT')}</h3>` + S.overrides.map(o => `<div class="row"><span>${short(o.from)} → <b class="num">${o.target}</b></span><button class="btn danger" data-act="overrideDel" data-id="${o.id}">${t('del')}</button></div>`).join('') : '')),
+  overrideSave: () => { const n = val('ovT'); if (n === '') return; S.overrides.push({ id: uid(), from: val('ovD') || todayISO(), target: Math.max(0, parseInt(n)) }); closeSheet(); commit(); },
+  overrideDel: e => { S.overrides = S.overrides.filter(o => o.id !== e.dataset.id); closeSheet(); commit(); },
+
+  healthNew: () => A.healthForm(null),
+  healthEdit: e => A.healthForm(S.health.find(x => x.id === e.dataset.id)),
+  healthForm: h => {
+    h = h || { date: todayISO() };
+    const r = k => sel('h_' + k, [['', '—'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']], String(h[k] ?? ''));
+    openSheet(t('weekly'), fld(t('date'), inp('h_date', h.date, 'date')) + fld(t('firstCig'), inp('h_first', h.first ?? '', 'number')) + fld(t('hr'), inp('h_hr', h.hr ?? '', 'number')) +
+      `<div class="grid2">${fld(t('bp') + ' ↑', inp('h_sys', h.sys ?? '', 'number'))}${fld(t('bp') + ' ↓', inp('h_dia', h.dia ?? '', 'number'))}</div>` + fld(t('co'), inp('h_co', h.co ?? '', 'number')) +
+      `<div class="muted" style="margin-bottom:6px">${t('rateHint')}</div>` + HF.map(([k]) => fld(t(k), r(k))).join('') +
+      `<button class="btn w" data-act="healthSave" ${h.id ? `data-id="${h.id}"` : ''}>${t('save')}</button>` + (h.id ? `<div class="btns"><button class="btn danger" data-act="healthDel" data-id="${h.id}">${t('del')}</button></div>` : ''));
+  },
+  healthSave: e => {
+    const data = { date: val('h_date') || todayISO() };
+    for (const k of ['first', 'hr', 'sys', 'dia', 'co', ...HF.map(x => x[0])]) data[k] = val('h_' + k);
+    const h = e.dataset.id && S.health.find(x => x.id === e.dataset.id);
+    if (h) Object.assign(h, data); else S.health.push({ id: uid(), ...data });
+    closeSheet(); commit();
+  },
+  healthDel: e => { if (!confirm(t('sureDel'))) return; S.health = S.health.filter(x => x.id !== e.dataset.id); closeSheet(); commit(); },
+
+  settings: () => {
+    const c = S.cfg, seg = (act, opts, v) => `<div class="seg">${opts.map(([k, l]) => `<button class="${k === v ? 'on' : ''}" data-act="${act}" data-v="${k}">${l}</button>`).join('')}</div>`;
+    openSheet(t('settings'), fld(t('language'), seg('setLang', [['ar', 'عربي'], ['en', 'English']], S.lang)) + fld(t('theme'), seg('setTheme', [['auto', t('auto')], ['light', t('light')], ['dark', t('dark')]], S.theme)) +
+      `<h3 style="margin-top:14px">${t('baseline')}</h3><div class="grid2">${fld(t('oldPerDay'), inp('c_oldPerDay', c.oldPerDay, 'number'))}${fld(t('cartonPrice'), inp('c_cartonPrice', c.cartonPrice, 'number'))}</div>${fld(t('cartonCigs'), inp('c_cartonCigs', c.cartonCigs, 'number'))}` +
+      `<h3 style="margin-top:14px">${t('calc')}</h3>${fld(t('defCigs'), inp('c_cigsPerPouch', c.cigsPerPouch, 'number'))}` +
+      `<h3 style="margin-top:14px">${t('planSet')}</h3>${fld(t('planStart'), inp('c_planStart', c.planStart, 'date'))}<div class="grid2">${fld(t('measureDays'), inp('c_measureDays', c.measureDays, 'number'))}${fld(t('stepDays'), inp('c_stepDays', c.stepDays, 'number'))}</div>${fld(t('needDays'), inp('c_needDays', c.needDays, 'number'))}` +
+      `<h3 style="margin-top:14px">${t('scoring')}</h3><div class="trio">${fld(t('full'), inp('c_sFull', c.sFull, 'number'))}${fld(t('part'), inp('c_sPart', c.sPart, 'number'))}${fld(t('miss'), inp('c_sMiss', c.sMiss, 'number'))}</div>` +
+      `<button class="btn w" data-act="cfgSave">${t('save')}</button>` +
+      `<h3 style="margin-top:14px">${t('backup')}</h3><div class="btns"><button class="btn sec" data-act="exportB">${t('exportB')}</button><button class="btn sec" data-act="importB">${t('importB')}</button></div><input id="impFile" type="file" accept="application/json,.json" hidden data-change="importFile">` +
+      (window.extraSettings ? window.extraSettings() : ''));
+  },
+  setLang: e => { S.lang = e.dataset.v; commit(); A.settings(); },
+  setTheme: e => { S.theme = e.dataset.v; commit(); A.settings(); },
+  cfgSave: () => {
+    const c = S.cfg;
+    for (const k of ['oldPerDay', 'cartonPrice', 'cartonCigs', 'cigsPerPouch', 'measureDays', 'stepDays', 'needDays', 'sFull', 'sPart', 'sMiss']) { const v = val('c_' + k); if (v !== '' && !isNaN(+v)) c[k] = +v; }
+    if (val('c_planStart')) c.planStart = val('c_planStart');
+    c.stepDays = Math.max(1, c.stepDays); c.needDays = Math.min(c.needDays, c.stepDays); c.cartonCigs = Math.max(1, c.cartonCigs); c.cigsPerPouch = Math.max(1, c.cigsPerPouch);
+    closeSheet(); commit(); toast(t('savedT'));
+  },
+  exportB: () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' }));
+    a.download = 'nafas-backup-' + todayISO() + '.json'; document.body.appendChild(a); a.click(); a.remove();
+  },
+  importB: () => document.getElementById('impFile').click(),
+  importFile: e => {
+    const file = e.files && e.files[0]; if (!file) return;
+    file.text().then(txt => { const o = JSON.parse(txt); if (!o || !o.cfg || !Array.isArray(o.habits)) throw 0; if (!confirm(t('restore') + '?')) return; S = merge(o); closeSheet(); commit(); toast(t('restored')); })
+      .catch(() => toast(t('badFile')));
+  },
+  close: () => closeSheet(),
+  closeBg: (e, ev) => { if (ev.target === e) closeSheet(); },
+};
+window.A = A;
+
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-act]'); if (!el) return;
+  const fn = A[el.dataset.act]; if (fn) fn(el, ev);
+});
+document.addEventListener('input', ev => {
+  const el = ev.target.closest('[data-input]'); if (!el) return;
+  const fn = A[el.dataset.input]; if (fn) fn(el, ev);
+});
+document.addEventListener('change', ev => {
+  const el = ev.target.closest('[data-change]'); if (!el) return;
+  const fn = A[el.dataset.change]; if (fn) fn(el, ev);
+});
+function boot() {
+  render();
+  // After midnight the "today" screen moves on by itself when the app comes back to the front.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && UI.day < todayISO() && UI.tab === 'today' && !document.getElementById('sheet').innerHTML) { UI.day = todayISO(); render(); } });
+}
+load();
+</script>
+</body>
+</html>
