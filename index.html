@@ -183,7 +183,9 @@ const L = {
   remindersT: ['التذكيرات', 'Reminders'], logRem: ['تذكير تسجيل الفلاتر آخر اليوم (اختياري)', 'Evening reminder to log filters (optional)'],
   calBtn: ['أضف التذكيرات للتقويم', 'Add reminders to calendar'], calDone: ['افتح الملف ليضيف التذكيرات لتقويمك', 'Open the file to add the reminders to your calendar'],
   calHint: ['أوقات العادات بتحطها من تعديل كل عادة. إذا غيرتها، احذف تذكيرات "نفس" القديمة من التقويم واكبس الزر من جديد', 'Set each habit\'s time in its edit screen. If you change them, delete the old Nafas reminders from your calendar and tap again'],
-  noRem: ['ما في عادات إلها وقت تذكير لسا', 'No habit has a reminder time yet'], logTitle: ['نفس: سجّل فلاتر اليوم', 'Nafas: log today\'s filters'],
+  noRem: ['ما في عادات إلها وقت تذكير لسا', 'No habit has a reminder time yet'], logTitle: ['نفس: سجّل فلاتر اليوم', 'Nafas: log today\'s filters'], logBody: ['سجّل فلاتر اليوم', 'Log today\'s filters'],
+  notifHint: ['التذكيرات بتوصلك كإشعارات من التطبيق، وبتتحدّث لحالها لما تغيّر الأوقات. وقت كل عادة بتحطه من تعديلها', 'Reminders arrive as notifications from the app and update by themselves when you change the times. Set each habit\'s time in its edit screen'],
+  notifN: ['مجدول هلأ: {n} إشعار', 'Scheduled now: {n} notifications'], notifOff: ['الإشعارات مسكّرة: افتحها من إعدادات الموبايل لتطبيق نفس', 'Notifications are off: turn them on in the phone settings for Nafas'],
   howOften: ['كم مرة', 'How often'], every: ['كل يوم', 'Every day'], fixedDays: ['أيام محددة', 'Set days'], perWeekL: ['مرات بالأسبوع', 'Times a week'],
   timesWeek: ['كم مرة بالأسبوع', 'Times per week'], pickDays: ['اختار يوم واحد على الأقل', 'Pick at least one day'],
   weekProg: ['{a}/{b} هالأسبوع', '{a}/{b} this week'], perWeekShort: ['{n} مرات بالأسبوع', '{n} times a week'],
@@ -479,10 +481,20 @@ function weekDone(h, d) {
 }
 // Calendar file (iCalendar) with one repeating event and alert per reminder: every day, or on the habit's days
 // (or the evening before, for things like fasting). Times are local, so they follow the phone's time zone.
+function reminderList() {
+  const out = [];
+  for (const h of S.habits) {
+    if (h.stopped || !h.remind) continue;
+    const days = h.days && h.days.length ? h.days.map(n => h.remindPrev ? (n + 6) % 7 : n) : null;
+    out.push({ id: h.id, title: t('app') + ': ' + h.name, body: h.name, time: h.remind, from: h.remindPrev && days ? addD(h.start, -1) : h.start, days });
+  }
+  if (S.cfg.logRemind) out.push({ id: 'log', title: t('logTitle'), body: t('logBody'), time: S.cfg.logRemind, from: S.cfg.planStart, days: null });
+  return out;
+}
 function buildICS() {
   const BY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'], today = todayISO(), ev = [];
   const icsText = s => String(s).replace(/\\/g, '\\\\').replace(/[,;]/g, m => '\\' + m).replace(/\n/g, ' ');
-  const add = (id, title, time, from, weekdays) => {
+  const add = ({ id, title, time, from, days: weekdays }) => {
     let d = from > today ? from : today;
     for (let i = 0; weekdays && i < 7 && !weekdays.includes(P(d).getDay()); i++) d = addD(d, 1);
     const st = d.replaceAll('-', '') + 'T' + time.replace(':', '') + '00';
@@ -491,16 +503,38 @@ function buildICS() {
       'DTSTART:' + st, 'DURATION:PT10M', 'RRULE:' + rule, 'SUMMARY:' + icsText(title),
       'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsText(title), 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT'].join('\r\n'));
   };
-  for (const h of S.habits) {
-    if (h.stopped || !h.remind) continue;
-    const days = h.days && h.days.length ? h.days.map(n => h.remindPrev ? (n + 6) % 7 : n) : null;
-    add(h.id, t('app') + ': ' + h.name, h.remind, h.remindPrev && days ? addD(h.start, -1) : h.start, days);
-  }
-  if (S.cfg.logRemind) add('log', t('logTitle'), S.cfg.logRemind, S.cfg.planStart, null);
+  reminderList().forEach(add);
   if (!ev.length) return '';
   // Calendar lines longer than 75 bytes are folded onto continuation lines that start with a space.
   const fold = line => { let out = '', n = 0; for (const ch of line) { const b = new TextEncoder().encode(ch).length; if (n + b > 73) { out += '\r\n '; n = 1; } out += ch; n += b; } return out; };
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Nafas//Reminders//AR', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:' + t('app'), ...ev, 'END:VCALENDAR'].join('\r\n').split('\r\n').map(fold).join('\r\n') + '\r\n';
+}
+// In the Android app the same reminders become phone notifications, rescheduled by themselves whenever they change.
+const LN = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins.LocalNotifications;
+// Updates run one after another (the app renders several times while it opens), so an older cancel never
+// lands after a newer schedule. notesState is shown in settings: how many are scheduled, or 'off'.
+let notesSig = null, notesQ = Promise.resolve(), notesState = null;
+function syncNotes() {
+  if (!LN) return;
+  const today = todayISO(), list = reminderList().filter(r => r.from <= today), sig = JSON.stringify(list);
+  if (sig === notesSig) return;
+  notesSig = sig;
+  notesQ = notesQ.then(async () => {
+    const pend = (await LN.getPending()).notifications;
+    if (pend.length) await LN.cancel({ notifications: pend.map(n => ({ id: n.id })) });
+    if (!list.length) return notesState = 0;
+    if ((await LN.requestPermissions()).display !== 'granted') return notesState = 'off';
+    // High importance makes Android show the reminder at the top of the screen, not only in the drawer.
+    await LN.createChannel({ id: 'reminders', name: t('remindersT'), importance: 4, visibility: 1, vibration: true });
+    const notifications = [];
+    list.forEach((r, i) => {
+      const [hour, minute] = r.time.split(':').map(Number);
+      for (const wd of r.days || [null]) notifications.push({ id: i * 10 + (wd ?? 7) + 1, title: t('app'), body: r.body, channelId: 'reminders',
+        schedule: { on: wd == null ? { hour, minute } : { weekday: wd + 1, hour, minute }, allowWhileIdle: true } });
+    });
+    await LN.schedule({ notifications });
+    notesState = (await LN.getPending()).notifications.length;
+  }).catch(e => { notesSig = null; notesState = 'off'; });
 }
 function schedLbl(h) {
   if (h.perWeek) return t('perWeekShort', { n: h.perWeek });
@@ -739,6 +773,7 @@ function render() {
   document.title = t('app');
   const tabs = ['today', 'habits', 'smoke', 'money', 'health'].map(k => `<button class="${UI.tab === k ? 'on' : ''}" data-act="tab" data-t="${k}">${ic(k)}${t(k)}</button>`).join('');
   document.getElementById('app').innerHTML = SCREENS[UI.tab]() + `<nav class="tabs"><div class="in">${tabs}</div></nav>`;
+  syncNotes();
 }
 
 /* ---------- sheets ---------- */
@@ -927,7 +962,7 @@ const A = {
       `<h3 style="margin-top:14px">${t('planSet')}</h3>${fld(t('planStart'), inp('c_planStart', c.planStart, 'date'))}<div class="grid2">${fld(t('measureDays'), inp('c_measureDays', c.measureDays, 'number'))}${fld(t('stepDays'), inp('c_stepDays', c.stepDays, 'number'))}</div>${fld(t('needDays'), inp('c_needDays', c.needDays, 'number'))}` +
       `<h3 style="margin-top:14px">${t('scoring')}</h3><div class="trio">${fld(t('full'), inp('c_sFull', c.sFull, 'number'))}${fld(t('part'), inp('c_sPart', c.sPart, 'number'))}${fld(t('miss'), inp('c_sMiss', c.sMiss, 'number'))}</div>` +
       `<button class="btn w" data-act="cfgSave">${t('save')}</button>` +
-      `<h3 style="margin-top:14px">${t('remindersT')}</h3>${fld(t('logRem'), inp('c_logRemind', c.logRemind || '', 'time'))}<div class="muted">${t('calHint')}</div><div class="btns"><button class="btn sec" data-act="calExport">${t('calBtn')}</button></div>` +
+      `<h3 style="margin-top:14px">${t('remindersT')}</h3>${fld(t('logRem'), inp('c_logRemind', c.logRemind || '', 'time'))}${LN ? `<div class="muted">${t('notifHint')}</div>${notesState == null ? '' : `<div class="muted"><b>${notesState === 'off' ? t('notifOff') : t('notifN', { n: notesState })}</b></div>`}` : `<div class="muted">${t('calHint')}</div><div class="btns"><button class="btn sec" data-act="calExport">${t('calBtn')}</button></div>`}` +
       `<h3 style="margin-top:14px">${t('backup')}</h3><div class="muted">${S.lastBackup ? t('lastB', { d: short(S.lastBackup) }) : t('neverB')} · ${t('backupHint')}</div><div class="btns"><button class="btn sec" data-act="exportB">${t('exportB')}</button><button class="btn sec" data-act="importB">${t('importB')}</button></div><input id="impFile" type="file" accept="application/json,.json" hidden data-change="importFile">` +
       (window.extraSettings ? window.extraSettings() : ''));
   },
