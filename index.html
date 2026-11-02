@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0F2D4A">
+<script>
+// Applies his last theme and language before the first paint, so the app never flashes the default colour.
+try { const k = JSON.parse(localStorage.getItem('nafas-look') || '{}'), h = document.documentElement;
+  if (k.theme && k.theme !== 'auto') h.dataset.theme = k.theme;
+  if (k.lang === 'en') { h.lang = 'en'; h.dir = 'ltr'; } } catch (e) {}
+</script>
 <title>نفس</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -46,6 +52,7 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
+html { background: var(--bg); }
 body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; font-weight: 500; line-height: 1.5; -webkit-tap-highlight-color: transparent; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--nav); }
 button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
@@ -324,19 +331,36 @@ $('auth').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.target.
 
 window.extraSettings = () => `<h3 style="margin-top:14px">${S.lang === 'en' ? 'Account' : 'الحساب'}</h3><div class="muted num">${esc(refs.email)}</div><div class="btns"><button class="btn danger" data-act="signout">${S.lang === 'en' ? 'Sign out' : 'تسجيل الخروج'}</button></div>`;
 
+// The last loaded data stays on this phone only, so the app opens at once and Firebase refreshes it a moment later.
+const SNAP = 'nafas-snap-v1';
+const readSnap = () => { try { return JSON.parse(localStorage.getItem(SNAP)); } catch (e) { return null; } };
+const writeSnap = data => { try { localStorage.setItem(SNAP, JSON.stringify({ uid: refs.uid, data })); } catch (e) {} };
+const dropSnap = () => { try { localStorage.removeItem(SNAP); } catch (e) {} };
+
 function load() {
+  const snap = readSnap();
+  if (snap && snap.uid && snap.data) S = merge(snap.data);
   boot();
   A.signout = async b => {
     if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = S.lang === 'en' ? 'Tap again to sign out' : 'اكبس كمان مرة لتسجيل الخروج'; return; }
     closeSheet(); await signOut(auth);
   };
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    // A new release installs in the background; reload once so it shows straight away.
+    const had = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) location.reload(); });
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
   onAuthStateChanged(auth, user => {
     if (unsub) { unsub(); unsub = null; }
-    if (!user) { refs.uid = null; refs.email = ''; S = DEF(); render(); showAuth(true); return; }
+    if (!user) { refs.uid = null; refs.email = ''; dropSnap(); S = DEF(); render(); showAuth(true); return; }
     showAuth(false);
     refs.uid = user.uid; refs.email = user.email || '';
-    unsub = onSnapshot(myDoc(), s => { S = s.exists() ? merge(s.data()) : DEF(); render(); }, () => toast('ما قدرت أوصل لبياناتك'));
+    if (readSnap()?.uid !== user.uid) { dropSnap(); S = DEF(); render(); }
+    unsub = onSnapshot(myDoc(), s => {
+      if (s.exists()) { writeSnap(s.data()); S = merge(s.data()); } else { dropSnap(); S = DEF(); }
+      render();
+    }, () => toast('ما قدرت أوصل لبياناتك'));
   });
 }
 /* ---------- actions ---------- */
@@ -770,6 +794,7 @@ function render() {
   MEMO = {};
   document.documentElement.lang = S.lang; document.documentElement.dir = S.lang === 'en' ? 'ltr' : 'rtl';
   if (S.theme === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = S.theme;
+  try { localStorage.setItem('nafas-look', JSON.stringify({ theme: S.theme, lang: S.lang })); } catch (e) {}
   document.title = t('app');
   const tabs = ['today', 'habits', 'smoke', 'money', 'health'].map(k => `<button class="${UI.tab === k ? 'on' : ''}" data-act="tab" data-t="${k}">${ic(k)}${t(k)}</button>`).join('');
   document.getElementById('app').innerHTML = SCREENS[UI.tab]() + `<nav class="tabs"><div class="in">${tabs}</div></nav>`;
