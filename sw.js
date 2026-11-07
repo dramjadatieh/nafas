@@ -1,6 +1,6 @@
 // Opens at once from the cache; the app's own files refresh in the background for the next open
 // (a new release reloads the page once). The Firebase library and fonts are cached after first use.
-const CACHE = 'nafas-v7';
+const CACHE = 'nafas-v8';
 const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 const CDN = ['www.gstatic.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 

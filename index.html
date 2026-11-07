@@ -233,6 +233,8 @@ const L = {
   cough: ['كحة الصبح (5 = ما في)', 'Morning cough (5 = none)'], breath: ['النفس على الدرج', 'Breath on stairs'], sleep: ['النوم', 'Sleep'], taste: ['الطعم والشم', 'Taste and smell'], crave: ['الرغبة بالدخان (5 = خفيفة)', 'Craving (5 = mild)'],
   latest: ['آخر فحص', 'Latest check'], vsFirst: ['مقارنة بأول فحص', 'vs first check'], history: ['السجل', 'History'],
   hsi: ['مؤشر الاعتماد (HSI)', 'Heaviness of Smoking Index'], hsiNote: ['من 0 لـ 6، كل ما قل أحسن. محسوب من أول سيجارة وعدد السجائر', '0 to 6, lower is better. From time to first cigarette and cigarettes/day'],
+  dayEnd: ['يومي بيخلص الساعة...', 'My day ends at...'], dayEndHint: ['اللي بتسجله قبل هالساعة بالليل بينحسب على اليوم اللي قبل', 'Anything you log before this time counts for the day before'],
+  midnight: ['12:00 بالليل (عادي)', '12:00 midnight (normal)'], amAr: ['الصبح', 'AM'],
   settings: ['الإعدادات', 'Settings'], language: ['اللغة', 'Language'], theme: ['المظهر', 'Theme'], auto: ['تلقائي', 'Auto'], light: ['فاتح', 'Light'], dark: ['غامق', 'Dark'],
   baseline: ['الدخان القديم (للمقارنة)', 'Old habit (baseline)'], oldPerDay: ['سجائر باليوم', 'Cigarettes per day'], cartonPrice: ['سعر الكروز', 'Carton price'], cartonCigs: ['سجائر بالكروز', 'Cigarettes per carton'],
   calc: ['الحسابات', 'Calculations'], defCigs: ['سجائر بالكيس (تقدير لحد ما يخلص أول كيس)', 'Cigarettes per pouch (estimate until the first pouch ends)'],
@@ -252,7 +254,9 @@ const L = {
 const t = (k, vars) => { let s = L[k] ? L[k][S.lang === 'en' ? 1 : 0] : k; if (vars) for (const v in vars) s = s.replaceAll('{' + v + '}', vars[v]); return s; };
 
 /* ---------- state ---------- */
-const todayISO = () => iso(new Date());
+// "Today" ends at the hour set in settings (cfg.dayEnd, 0 to 6, default 0 = midnight): before it, it is still the day before.
+const dayEndH = () => { try { return Math.min(6, Math.max(0, +S.cfg.dayEnd || 0)); } catch (e) { return 0; } };
+const todayISO = () => iso(new Date(Date.now() - dayEndH() * 36e5));
 const DEF = () => ({
   v: 1, lang: 'ar', theme: 'auto', lastBackup: '',
   habits: [], marks: {}, cigs: {}, pouches: [], purchases: [], outs: [], health: [], overrides: [],
@@ -261,6 +265,17 @@ const DEF = () => ({
 });
 let S = DEF();
 const UI = { tab: 'today', day: todayISO(), month: todayISO().slice(0, 7) };
+// When "today" changes (the day-end hour passes, the app comes back, the data or the setting loads), the screens
+// that were showing today move to the new today. A past day he opened on purpose stays.
+let lastToday = UI.day;
+function rollDay() {
+  const now = todayISO(), old = lastToday;
+  if (now === old) return false;
+  lastToday = now;
+  if (UI.day === old || UI.day > now) UI.day = now;
+  if (UI.month === old.slice(0, 7)) UI.month = now.slice(0, 7);
+  return true;
+}
 
 /* ---------- storage (Firebase) ---------- */
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
@@ -791,6 +806,7 @@ function scrHealth() {
 
 const SCREENS = { today: scrToday, habits: scrHabits, smoke: scrSmoke, money: scrMoney, health: scrHealth };
 function render() {
+  rollDay();
   MEMO = {};
   document.documentElement.lang = S.lang; document.documentElement.dir = S.lang === 'en' ? 'ltr' : 'rtl';
   if (S.theme === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = S.theme;
@@ -982,6 +998,7 @@ const A = {
   settings: () => {
     const c = S.cfg, seg = (act, opts, v) => `<div class="seg">${opts.map(([k, l]) => `<button class="${k === v ? 'on' : ''}" data-act="${act}" data-v="${k}">${l}</button>`).join('')}</div>`;
     openSheet(t('settings'), fld(t('language'), seg('setLang', [['ar', 'عربي'], ['en', 'English']], S.lang)) + fld(t('theme'), seg('setTheme', [['auto', t('auto')], ['light', t('light')], ['dark', t('dark')]], S.theme)) +
+      fld(t('dayEnd'), sel('c_dayEnd', Array.from({ length: 13 }, (_, i) => [String(i / 2), i ? (Math.floor(i / 2) || 12) + ':' + (i % 2 ? '30' : '00') + ' ' + t('amAr') : t('midnight')]), String(dayEndH()))) + `<div class="muted">${t('dayEndHint')}</div>` +
       `<h3 style="margin-top:14px">${t('baseline')}</h3><div class="grid2">${fld(t('oldPerDay'), inp('c_oldPerDay', c.oldPerDay, 'number'))}${fld(t('cartonPrice'), inp('c_cartonPrice', c.cartonPrice, 'number'))}</div>${fld(t('cartonCigs'), inp('c_cartonCigs', c.cartonCigs, 'number'))}` +
       `<h3 style="margin-top:14px">${t('calc')}</h3>${fld(t('defCigs'), inp('c_cigsPerPouch', c.cigsPerPouch, 'number'))}` +
       `<h3 style="margin-top:14px">${t('planSet')}</h3>${fld(t('planStart'), inp('c_planStart', c.planStart, 'date'))}<div class="grid2">${fld(t('measureDays'), inp('c_measureDays', c.measureDays, 'number'))}${fld(t('stepDays'), inp('c_stepDays', c.stepDays, 'number'))}</div>${fld(t('needDays'), inp('c_needDays', c.needDays, 'number'))}` +
@@ -998,6 +1015,8 @@ const A = {
     for (const k of ['oldPerDay', 'cartonPrice', 'cartonCigs', 'cigsPerPouch', 'measureDays', 'stepDays', 'needDays', 'sFull', 'sPart', 'sMiss']) { const v = val('c_' + k); if (v !== '' && !isNaN(+v)) c[k] = +v; }
     if (val('c_planStart')) c.planStart = val('c_planStart');
     c.logRemind = val('c_logRemind');
+    // Midnight is the default, so it is not stored: his saved data only changes if he picks another hour.
+    const de = +val('c_dayEnd') || 0; if (de) c.dayEnd = de; else delete c.dayEnd;
     c.stepDays = Math.max(1, c.stepDays); c.needDays = Math.min(c.needDays, c.stepDays); c.cartonCigs = Math.max(1, c.cartonCigs); c.cigsPerPouch = Math.max(1, c.cigsPerPouch);
     closeSheet(); commit(); toast(t('savedT'));
   },
@@ -1049,8 +1068,11 @@ document.addEventListener('change', ev => {
 });
 function boot() {
   render();
-  // After midnight the "today" screen moves on by itself when the app comes back to the front.
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && UI.day < todayISO() && UI.tab === 'today' && !document.getElementById('sheet').innerHTML) { UI.day = todayISO(); render(); } });
+  // When the day ends, "today" moves on by itself: on coming back to the front, and every 30 s while open.
+  const tick = () => { if (!document.hidden && rollDay()) render(); };
+  document.addEventListener('visibilitychange', tick);
+  window.addEventListener('focus', tick);
+  setInterval(tick, 30000);
 }
 load();
 </script>
