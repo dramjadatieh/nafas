@@ -123,6 +123,8 @@ td.n, th.n { text-align: center; }
 .bars .b.over { background: var(--red); }
 .bars .b.none { background: var(--track); }
 .bars .tl { position: absolute; inset-inline: 0; border-top: 2px dashed var(--gold); }
+.bar { height: 12px; border-radius: 99px; background: var(--track); overflow: hidden; margin: 4px 0 2px; }
+.bar i { display: block; height: 100%; background: var(--gold); border-radius: 99px; }
 .barlbl { display: flex; gap: 4px; font-size: 10px; color: var(--muted); }
 .barlbl span { flex: 1; text-align: center; }
 
@@ -250,12 +252,32 @@ const L = {
   restoreSure: ['هاد بيبدّل كل بياناتك الحالية ببيانات النسخة. متأكد؟', 'This replaces all your current data with the backup. Sure?'], importB: ['رجّع من نسخة', 'Restore backup'],
   restored: ['رجعت البيانات', 'Data restored'], badFile: ['الملف مش صحيح', 'That file is not a backup'], savedT: ['انحفظ', 'Saved'],
   sureDel: ['متأكد بدك تحذف؟', 'Delete this?'], aed: ['درهم', 'AED'],
+  streakT: ['سلسلة الالتزام', 'Commitment streak'], streakDays: ['{n} يوم ورا بعض ضمن الهدف', '{n} days in a row within target'],
+  streakNone: ['لسا ما في سلسلة. أول يوم ضمن الهدف ببلّشها', 'No streak yet. Your first day within target starts it'],
+  streakRule: ['يوم بدون تسجيل (أو فيه "ضل" أكبر من "طلّعت") بيوقف السلسلة. اليوم ما بينحسب عليك لحد ما تسجله', 'A day with no log (or with "left" more than "taken") stops the streak. Today does not count against you until you log it'],
+  zeroAt: ['إذا ضليت ملتزم بتوصل صفر تقريباً: {d}', 'If you stay on target you reach zero around: {d}'], zeroNote: ['تقدير مش وعد: الهدف بينزل سيجارة كل {s} يوم التزام', 'An estimate, not a promise: the target drops by one every {s} days on target'],
+  zeroNow: ['هدفك هلأ صفر', 'Your target is now zero'],
+  goalT: ['هدف التوفير', 'Savings goal'], goalSet: ['حط هدف للتوفير', 'Set a savings goal'], goalEdit: ['تعديل الهدف', 'Edit goal'],
+  goalName: ['شو الهدف (اسم الشي اللي بدك تجمع إله)', 'What is the goal'], goalAmount: ['المبلغ (درهم)', 'Amount (AED)'],
+  goalHint: ['اكتب هدف ومبلغ، والتطبيق بيورجيك قديش توفيرك من الدخان غطّى منه', 'Type a goal and an amount; the app shows how much of it your smoking savings cover'],
+  goalProg: ['{a} من {b} درهم', '{a} of {b} AED'], goalLeft: ['ضايل {n} درهم', '{n} AED to go'], goalDone: ['توفيرك غطّى الهدف كله', 'Your savings cover the whole goal'],
+  goalNote: ['محسوب من كل توفيرك من أول التتبع', 'Counted from all your savings since you started'], goalDel: ['شيل الهدف', 'Remove goal'],
+  cloudB: ['نسخ تلقائية بالسحابة', 'Automatic cloud copies'], cloudHint: ['التطبيق بياخد نسخة لحاله مرة باليوم وبيخلّي آخر 7 نسخ. ما بدها منك شي', 'The app keeps a copy by itself once a day and holds the last 7. Nothing for you to do'],
+  cloudShow: ['شوف النسخ', 'Show copies'], cloudLoading: ['عم نجيب النسخ...', 'Loading copies...'], cloudNone: ['لسا ما في نسخ. أول نسخة بتنعمل لحالها', 'No copies yet. The first is made by itself'],
+  cloudOffline: ['ما زبطت. بدها نت، جرب كمان مرة', 'That did not work. It needs internet; try again'], cloudDays: ['{n} يوم مسجّل', '{n} logged days'],
+  cloudRestoreBtn: ['رجّعها', 'Restore'], cloudPre: ['بياناتك قبل آخر استرجاع', 'Your data before the last restore'],
+  cloudSure: ['هاد بيبدّل كل بياناتك الحالية بنسخة {d}. بياناتك الحالية بتنحفظ كنسخة "قبل آخر استرجاع". متأكد؟', 'This replaces all your current data with the copy of {d}. Your current data is kept as "before the last restore". Sure?'],
+  about: ['عن التطبيق', 'About'], version: ['رقم النسخة', 'Version'], verLocal: ['نسخة الكمبيوتر (محلية)', 'computer copy (local)'],
+  syncLast: ['آخر حفظ وصل للسيرفر: {d}', 'Last save that reached the server: {d}'], syncNever: ['ولا مرة من هالموبايل', 'never from this phone'],
+  syncWait: ['في تغييرات ناطرة تنبعت (بتروح لحالها لما يرجع النت)', 'changes are waiting to be sent (they go by themselves when online)'], syncAll: ['ما في شي ناطر', 'nothing waiting'],
   dayNames: [['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'], ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']],
   monthNames: [['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'], ['January','February','March','April','May','June','July','August','September','October','November','December']],
 };
 const t = (k, vars) => { let s = L[k] ? L[k][S.lang === 'en' ? 1 : 0] : k; if (vars) for (const v in vars) s = s.replaceAll('{' + v + '}', vars[v]); return s; };
 
 /* ---------- state ---------- */
+// The build stamps the release number here (build/build-pwa.js); this file opened by itself says 'dev'.
+const VERSION = "10";
 // "Today" ends at the hour set in settings (cfg.dayEnd, 0 to 6, default 0 = midnight): before it, it is still the day before.
 const dayEndH = () => { try { return Math.min(6, Math.max(0, +S.cfg.dayEnd || 0)); } catch (e) { return 0; } };
 const todayISO = () => iso(new Date(Date.now() - dayEndH() * 36e5));
@@ -282,7 +304,7 @@ function rollDay() {
 /* ---------- storage (Firebase) ---------- */
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, onSnapshot, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, onSnapshot, deleteField, collection, getDocsFromServer, getDocFromServer, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { firebaseConfig } from './config.js';
 
 // Same Firebase project and sign-in as Jaybti; Nafas keeps its data in its own document: users/<uid>/apps/nafas.
@@ -299,6 +321,16 @@ const myDoc = () => doc(fsdb, 'users', refs.uid, 'apps', 'nafas');
 // copy never writes that old copy over what another phone saved. Nothing is sent before his data has arrived.
 // A restore from a backup file (full) replaces the whole document.
 let base = null;
+// "Last synced" for settings: when this phone's last save reached the server (kept on this phone), and whether
+// something is still waiting to be sent (Firestore's own flag, so it is also right after the app restarts).
+const SYNC = 'nafas-sync-v1';
+const syncState = { at: null, pending: false };
+const readSync = () => { try { const o = JSON.parse(localStorage.getItem(SYNC)); syncState.at = o && o.uid === refs.uid ? o.at : null; } catch (e) { syncState.at = null; } };
+function reached() {
+  syncState.at = Date.now();
+  try { localStorage.setItem(SYNC, JSON.stringify({ uid: refs.uid, at: syncState.at })); } catch (e) {}
+  drawSync();
+}
 function save(full) {
   if (!refs.uid) return;
   if (!refs.ready) { toast('استنى لتوصل بياناتك'); return; }
@@ -311,8 +343,48 @@ function save(full) {
     sent = setDoc(myDoc(), nestOps(ops, deleteField()), { merge: true });
   }
   base = cur;
-  sent.catch(() => toast('ما انحفظ. جرب كمان مرة'));
+  syncState.pending = true; drawSync();
+  sent.then(reached, () => toast('ما انحفظ. جرب كمان مرة'));
 }
+
+/* ---------- automatic daily cloud copies ---------- */
+// Once a day this phone keeps a copy of his data beside the main document (users/<uid>/apps/nafas/backups/<date>)
+// and drops all but the newest 7. It only runs after his data has arrived from the server (never from an old
+// copy on this phone, never before refs.ready), never copies empty data, and never replaces a copy already made
+// that day (by this or another phone). 'pre' holds his data as it was before the last restore.
+const BK = 'nafas-bk-v1';
+const bkDoc = id => doc(fsdb, 'users', refs.uid, 'apps', 'nafas', 'backups', id);
+let bkBusy = false;
+async function autoBackup() {
+  if (!refs.uid || !refs.ready || bkBusy || !hasData()) return;
+  const uid = refs.uid, day = todayISO(), mark = uid + ':' + day;
+  try { if (localStorage.getItem(BK) === mark) return; } catch (e) {}
+  bkBusy = true;
+  try {
+    const ids = (await getDocsFromServer(collection(fsdb, 'users', uid, 'apps', 'nafas', 'backups'))).docs.map(d => d.id);
+    if (refs.uid !== uid) return;
+    if (!ids.includes(day)) await setDoc(bkDoc(day), { date: day, at: Date.now(), data: plain(S) });
+    for (const id of backupsToDrop([...ids, day])) await deleteDoc(bkDoc(id));
+    try { localStorage.setItem(BK, mark); } catch (e) {}
+  } catch (e) { /* offline or refused: tries again at the next snapshot */ }
+  finally { bkBusy = false; }
+}
+window.cloud = {
+  sync: () => ({ ...syncState }),
+  async list() {
+    const q = await getDocsFromServer(collection(fsdb, 'users', refs.uid, 'apps', 'nafas', 'backups'));
+    return q.docs.map(d => { const x = d.data(); return { id: d.id, date: x.date, at: x.at, days: Object.keys((x.data && x.data.cigs) || {}).length }; })
+      .sort((a, b) => (b.id === 'pre') - (a.id === 'pre') || (a.date < b.date ? 1 : -1));
+  },
+  // Reads the chosen copy, then keeps his current data as 'pre' before the app replaces it.
+  async take(id) {
+    if (!refs.ready) throw new Error('not ready');
+    const s = await getDocFromServer(bkDoc(id));
+    if (!s.exists()) throw new Error('missing');
+    await setDoc(bkDoc('pre'), { date: todayISO(), at: Date.now(), data: plain(S) });
+    return s.data().data;
+  },
+};
 
 /* ---------- sign-in screen ---------- */
 const AUTH_ERR = {
@@ -398,8 +470,8 @@ function load() {
   }
   onAuthStateChanged(auth, user => {
     if (unsub) { unsub(); unsub = null; }
-    if (!user) { refs.uid = null; refs.email = ''; refs.ready = false; base = null; dropSnap(); S = DEF(); render(); showAuth(true); return; }
-    refs.uid = user.uid; refs.email = user.email || '';
+    if (!user) { refs.uid = null; refs.email = ''; refs.ready = false; base = null; syncState.at = null; syncState.pending = false; dropSnap(); S = DEF(); render(); showAuth(true); return; }
+    refs.uid = user.uid; refs.email = user.email || ''; readSync();
     // With his last copy on this phone the app works at once (also offline); without one it waits for the data.
     refs.ready = readSnap()?.uid === user.uid;
     if (refs.ready) showAuth(false); else { dropSnap(); S = DEF(); base = null; render(); showWait(false); }
@@ -408,12 +480,17 @@ function load() {
       // "No document" read from this phone's own empty cache says nothing about the server: keep waiting.
       if (!s.exists() && s.metadata.fromCache) { if (!refs.ready) showWait(true); return; }
       const data = s.exists() ? s.data() : null, sig = JSON.stringify(data), first = !refs.ready;
-      if (!first && sig === last) return;
-      last = sig;
-      if (data) { writeSnap(data); S = merge(data); } else { dropSnap(); S = DEF(); }
-      base = plain(S); refs.ready = true;
-      if (first) showAuth(false);
-      render();
+      // A save that was waiting (also from before the app was closed) has reached the server when this flag clears.
+      const was = syncState.pending; syncState.pending = s.metadata.hasPendingWrites;
+      if (was && !syncState.pending && !s.metadata.fromCache) reached(); else if (was !== syncState.pending) drawSync();
+      if (first || sig !== last) {
+        last = sig;
+        if (data) { writeSnap(data); S = merge(data); } else { dropSnap(); S = DEF(); }
+        base = plain(S); refs.ready = true;
+        if (first) showAuth(false);
+        render();
+      }
+      if (data && !s.metadata.fromCache) autoBackup();
     }, () => toast('ما قدرت أوصل لبياناتك'));
   });
 }
@@ -452,6 +529,11 @@ const diff = (a, b) => Math.round((P(b) - P(a)) / 864e5);
 const monthEnd = m => { const [y, mo] = m.split('-').map(Number); return iso(new Date(y, mo, 0)); };
 const addM = (m, n) => { const [y, mo] = m.split('-').map(Number); const d = new Date(y, mo - 1 + n, 1); return iso(d).slice(0, 7); };
 const nameDay = s => { const d = P(s); return L.dayNames[S.lang === 'en' ? 1 : 0][d.getDay()] + ' ' + d.getDate() + ' ' + L.monthNames[S.lang === 'en' ? 1 : 0][d.getMonth()]; };
+const nameDate = s => { const d = P(s); return d.getDate() + ' ' + L.monthNames[S.lang === 'en' ? 1 : 0][d.getMonth()] + ' ' + d.getFullYear(); };
+const stamp = ms => { const d = new Date(ms), day = iso(d); return (day === iso(new Date(Date.now())) ? t('today') : short(day)) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+// "Last synced" line in settings, from what the phone app's storage reports ({ at, pending }).
+const syncText = info => t('syncLast', { d: info.at ? stamp(info.at) : t('syncNever') }) + ' · ' + (info.pending ? t('syncWait') : t('syncAll'));
+function drawSync() { const el = document.getElementById('syncLine'); if (el && window.cloud) el.textContent = syncText(window.cloud.sync()); }
 const short = s => { const d = P(s); return d.getDate() + '/' + (d.getMonth() + 1); };
 const nameMonth = m => { const [y, mo] = m.split('-').map(Number); return L.monthNames[S.lang === 'en' ? 1 : 0][mo - 1] + ' ' + y; };
 const f = (n, d = 0) => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -559,6 +641,34 @@ function targetFor(d) {
   }
   return { type: 'target', n: cur, bs, be: addD(bs, c.stepDays) };
 }
+// Commitment streak: days in a row, back from today, that were logged and within that day's target.
+// Today not logged yet does not break it (the day is not over). A past day with no numbers, or with
+// "left > taken", stops it: a day that cannot be counted is not an on-target day (the plan's own rule).
+function streak(today = todayISO()) {
+  let n = 0, d = smoked(today) == null ? addD(today, -1) : today;
+  for (;; d = addD(d, -1)) { const v = smoked(d), tg = targetFor(d); if (v == null || tg.type !== 'target' || v > tg.n) break; n++; }
+  return n;
+}
+// Estimated day the target reaches zero if every block from now is on target (one less per block). If the
+// current block can no longer reach the needed days, its drop is counted one block later.
+function zeroDate(today = todayISO()) {
+  const tg = targetFor(today), c = S.cfg;
+  if (tg.type !== 'target') return null;
+  if (tg.n <= 0) return { n: 0, date: null };
+  let ok = 0, open = 0;
+  for (let d = tg.bs; d < tg.be; d = addD(d, 1)) { const v = smoked(d); if (d > today || (d === today && v == null)) open++; else if (v != null && v <= tg.n) ok++; }
+  return { n: tg.n, date: addD(tg.be, (tg.n - 1 + (ok + open < c.needDays ? 1 : 0)) * c.stepDays) };
+}
+// His savings goal (name and amount he typed, kept in settings): how much of it all his savings cover.
+function goalInfo(today = todayISO()) {
+  const amount = +S.cfg.goalAmount || 0;
+  if (!(amount > 0)) return null;
+  const first = S.cfg.planStart, saved = first > today ? 0 : moneyFor(first, today).saved, got = Math.max(0, saved);
+  return { name: S.cfg.goalName || '', amount, saved, pct: got / amount * 100, left: Math.max(0, amount - got) };
+}
+const hasData = () => !!(S.purchases.length || S.habits.length || Object.keys(S.cigs).length || Object.keys(S.marks).length);
+// Daily cloud copies are named by their date: all but the newest `keep` are dropped (other names are left alone).
+const backupsToDrop = (ids, keep = 7) => [...new Set(ids)].filter(x => /^\d{4}-\d\d-\d\d$/.test(x)).sort().reverse().slice(keep);
 function moneyFor(a, b) {
   const infos = pouchInfos(), est = estCigsPerPouch(infos), op = oldCigPrice(), oldDay = S.cfg.oldPerDay * op;
   const r = { n: 0, cigs: 0, spent: 0, old: 0, less: 0, roll: 0, tob: 0, paper: 0, filter: 0, est: false };
@@ -730,11 +840,20 @@ function scrToday() {
       return `<div class="row tap" data-act="mark" data-h="${h.id}" data-d="${d}"><span>${esc(h.name)}</span><span style="display:flex;align-items:center;gap:8px"><span class="muted">${schedOn(h, d).perWeek ? t('weekProg', { a: weekDone(h, d), b: schedOn(h, d).perWeek }) : markLbl(k)}</span><span class="dot ${markCls(k)}"></span></span></div>`; }).join('')
       : `<div class="empty muted">${t('noHabits')}</div>`}
     <div class="btns"><button class="btn sec" data-act="habitNew">${ic('plus')} ${t('addHabit')}</button></div></section>`;
+  // Streak card: only on today's page, once there is a target.
+  let streakCard = '';
+  if (d === todayISO() && tg.type === 'target') {
+    const n = streak(d), z = zeroDate(d);
+    streakCard = `<section class="card hero"><h2 style="color:var(--gold)">${t('streakT')}</h2>
+      ${n ? `<div class="big num">${n}</div><div class="muted">${t('streakDays', { n })}</div>` : `<div class="muted">${t('streakNone')}</div>`}
+      ${z ? `<div style="margin-top:8px">${z.date ? t('zeroAt', { d: nameDate(z.date) }) : t('zeroNow')}</div>${z.date ? `<div class="muted">${t('zeroNote', { s: S.cfg.stepDays })}</div>` : ''}` : ''}
+      <div class="muted" style="margin-top:6px">${t('streakRule')}</div></section>`;
+  }
   // Monthly nudge to back up, once there is data worth keeping.
   const hasData = S.purchases.length || S.habits.length || Object.keys(S.cigs).length;
   const age = S.lastBackup ? diff(S.lastBackup, todayISO()) : null;
   const remind = hasData && (age == null || age > 30) ? `<section class="card"><div class="row"><span class="muted">${age == null ? t('remindNever') : t('remindB', { n: age })}</span><button class="btn" data-act="exportB">${t('exportB')}</button></div></section>` : '';
-  return navBar(t('today'), dayNav()) + `<main class="wrap">${remind}${cig}${pouch}${habits}</main>`;
+  return navBar(t('today'), dayNav()) + `<main class="wrap">${remind}${cig}${streakCard}${pouch}${habits}</main>`;
 }
 
 function scrHabits() {
@@ -811,7 +930,7 @@ function scrMoney() {
     <div class="big">${r.n ? N(r.saved) + ' ' + t('aed') : '—'}</div>
     <div class="muted">${r.n ? t('daysCounted', { n: r.n }) + (r.n < dim ? ' · ' + t('projected', { n: f(r.saved / r.n * dim) }) : '') : t('noData')}</div>
     ${r.est ? `<div class="muted">${t('estimate')}</div>` : ''}</section>`;
-  if (!r.n) return navBar(t('money'), monthNav()) + `<main class="wrap">${hero}${allTimeCard()}</main>`;
+  if (!r.n) return navBar(t('money'), monthNav()) + `<main class="wrap">${hero}${goalCard()}${allTimeCard()}</main>`;
   const lines = `<section class="card">
     <div class="row"><span>${t('spent')}</span><span>${N(r.spent, 1)} ${t('aed')}</span></div>
     <div class="row"><span>${t('oldEq')}</span><span>${N(r.old, 1)} ${t('aed')}</span></div></section>`;
@@ -828,7 +947,16 @@ function scrMoney() {
   const opened = S.pouches.filter(p => p.start >= a && p.start <= b && p.ref > 0);
   const air = opened.length ? `<section class="card"><div class="row"><span>${t('airportSave')}<br><span class="muted">${t('airportNote')}</span></span><span>${N(sum(opened.map(p => p.ref - p.price)), 1)} ${t('aed')}</span></div></section>` : '';  const paid = sum(S.purchases.filter(p => p.date >= a && p.date <= b).map(aedOf));
   const cash = `<section class="card"><div class="row"><span>${t('paidMonth')}</span><span>${N(paid, 1)} ${t('aed')}</span></div></section>`;
-  return navBar(t('money'), monthNav()) + `<main class="wrap">${hero}${lines}${split}${per}${air}${cash}${allTimeCard()}</main>`;
+  return navBar(t('money'), monthNav()) + `<main class="wrap">${hero}${goalCard()}${lines}${split}${per}${air}${cash}${allTimeCard()}</main>`;
+}
+function goalCard() {
+  const g = goalInfo();
+  if (!g) return `<section class="card"><h2>${t('goalT')}</h2><div class="muted">${t('goalHint')}</div><div class="btns"><button class="btn sec" data-act="goalEdit">${t('goalSet')}</button></div></section>`;
+  return `<section class="card"><h2>${t('goalT')}${g.name ? ': ' + esc(g.name) : ''}<small>${N(Math.floor(g.pct))}%</small></h2>
+    <div class="bar"><i style="width:${Math.min(100, g.pct)}%"></i></div>
+    <div class="row"><span>${t('goalProg', { a: f(Math.max(0, g.saved)), b: f(g.amount) })}</span><span class="muted">${g.left > 0 ? t('goalLeft', { n: f(g.left) }) : t('goalDone')}</span></div>
+    <div class="muted">${t('goalNote')}</div>
+    <div class="btns"><button class="btn sec" data-act="goalEdit">${t('goalEdit')}</button></div></section>`;
 }
 function allTimeCard() {
   const today = todayISO(), first = S.cfg.planStart;
@@ -1078,7 +1206,31 @@ const A = {
       `<button class="btn w" data-act="cfgSave">${t('save')}</button>` +
       `<h3 style="margin-top:14px">${t('remindersT')}</h3>${fld(t('logRem'), inp('c_logRemind', c.logRemind || '', 'time'))}${LN ? `<div class="muted">${t('notifHint')}</div>${notesState == null ? '' : `<div class="muted"><b>${notesState === 'off' ? t('notifOff') : t('notifN', { n: notesState })}</b></div>`}` : `<div class="muted">${t('calHint')}</div><div class="btns"><button class="btn sec" data-act="calExport">${t('calBtn')}</button></div>`}` +
       `<h3 style="margin-top:14px">${t('backup')}</h3><div class="muted">${S.lastBackup ? t('lastB', { d: short(S.lastBackup) }) : t('neverB')} · ${t('backupHint')}</div><div class="btns"><button class="btn sec" data-act="exportB">${t('exportB')}</button><button class="btn sec" data-act="importB">${t('importB')}</button></div><input id="impFile" type="file" accept="application/json,.json" hidden data-change="importFile">` +
-      (window.extraSettings ? window.extraSettings() : ''));
+      (window.cloud ? `<h3 style="margin-top:14px">${t('cloudB')}</h3><div class="muted">${t('cloudHint')}</div><div class="btns"><button class="btn sec" data-act="cloudList">${t('cloudShow')}</button></div>` : '') +
+      (window.extraSettings ? window.extraSettings() : '') +
+      `<h3 style="margin-top:14px">${t('about')}</h3><div class="muted">${t('version')}: <b class="num">${VERSION === 'dev' ? t('verLocal') : VERSION}</b></div>` +
+      (window.cloud ? `<div class="muted" id="syncLine">${syncText(window.cloud.sync())}</div>` : ''));
+  },
+  goalEdit: () => openSheet(t('goalT'), fld(t('goalName'), inp('gName', S.cfg.goalName || '')) + fld(t('goalAmount'), inp('gAmount', S.cfg.goalAmount || '', 'number')) +
+    `<button class="btn w" data-act="goalSave">${t('save')}</button>` + (S.cfg.goalAmount ? `<div class="btns"><button class="btn danger" data-act="goalDel">${t('goalDel')}</button></div>` : '')),
+  goalSave: () => {
+    const amount = +dig(val('gAmount')); if (!(amount > 0)) { document.getElementById('gAmount').focus(); return; }
+    S.cfg.goalName = val('gName'); S.cfg.goalAmount = amount; closeSheet(); commit(); toast(t('savedT'));
+  },
+  goalDel: () => { if (!confirm(t('sureDel'))) return; delete S.cfg.goalName; delete S.cfg.goalAmount; closeSheet(); commit(); },
+  // Cloud copies (phone app only): list them, and bring one back after a clear confirmation.
+  cloudList: async () => {
+    openSheet(t('cloudB'), `<div class="empty muted">${t('cloudLoading')}</div>`);
+    let list; try { list = await window.cloud.list(); } catch (e) { openSheet(t('cloudB'), `<div class="warn">${t('cloudOffline')}</div>`); return; }
+    openSheet(t('cloudB'), `<div class="muted">${t('cloudHint')}</div>` + (list.length ? list.map(b => `<div class="row"><span>${b.id === 'pre' ? t('cloudPre') : nameDay(b.date)}<br><span class="muted">${stamp(b.at)} · ${t('cloudDays', { n: b.days })}</span></span><button class="btn sec" data-act="cloudRestore" data-id="${esc(b.id)}" data-d="${esc(b.date)}">${t('cloudRestoreBtn')}</button></div>`).join('') : `<div class="empty muted">${t('cloudNone')}</div>`));
+  },
+  cloudRestore: async e => {
+    if (!confirm(t('cloudSure', { d: short(e.dataset.d) }))) return;
+    try {
+      const o = await window.cloud.take(e.dataset.id);
+      if (!o || !o.cfg || !Array.isArray(o.habits)) throw 0;
+      S = merge(o); closeSheet(); commit(true); toast(t('restored'));
+    } catch (err) { toast(t('cloudOffline')); }
   },
   setLang: e => { S.lang = e.dataset.v; commit(); A.settings(); },
   setTheme: e => { S.theme = e.dataset.v; commit(); A.settings(); },
