@@ -176,7 +176,8 @@ const L = {
   target: ['الهدف', 'Target'], noPlan: ['ما في هدف لهاليوم', 'No target for this day'],
   takeHint: ['طلّع {n} فلتر وخلي 2-3 احتياط لحالهم', 'Take {n} filters and keep 2-3 spare apart'],
   within: ['ضمن الهدف', 'Within target'], overBy: ['زيادة {n} عن الهدف', '{n} over target'],
-  notLogged: ['لسا ما سجلت هاليوم', 'Not logged yet'], clear: ['مسح', 'Clear'],
+  notLogged: ['لسا ما سجلت هاليوم', 'Not logged yet'],
+  badCig: ['"ضل" أكبر من "طلّعت". صلّح الرقمين، اليوم مش محسوب هيك', '"Left" is more than "Taken". Fix the numbers; this day is not counted'], clear: ['مسح', 'Clear'],
   pouchNow: ['الكيس الحالي', 'Current pouch'], dayN: ['اليوم {n}', 'Day {n}'], soFar: ['{n} سيجارة لحد الآن', '{n} cigarettes so far'],
   noPouch: ['ما في كيس مفتوح', 'No open pouch'], newPouch: ['بدأت كيس جديد', 'Started a new pouch'],
   yourHabits: ['عاداتك', 'Your habits'], tapHint: ['كبسة لتغيير اللون', 'Tap to change'],
@@ -245,7 +246,8 @@ const L = {
   backupHint: ['احفظها بـ Google Drive أو ابعتها لإيميلك', 'Save it to Google Drive or email it to yourself'],
   lastB: ['آخر نسخة: {d}', 'Last backup: {d}'], neverB: ['ما عملت نسخة لسا', 'No backup yet'],
   remindB: ['صار لك {n} يوم بدون نسخة احتياطية', 'It has been {n} days since your last backup'], remindNever: ['ما عملت نسخة احتياطية لبياناتك لسا', 'You have not backed up your data yet'],
-  backupSaved: ['انحفظت النسخة الاحتياطية', 'Backup saved'], importB: ['رجّع من نسخة', 'Restore backup'],
+  backupSaved: ['انحفظت النسخة الاحتياطية', 'Backup saved'], backupFail: ['ما زبطت النسخة. جرب كمان مرة', 'The backup did not work. Try again'],
+  restoreSure: ['هاد بيبدّل كل بياناتك الحالية ببيانات النسخة. متأكد؟', 'This replaces all your current data with the backup. Sure?'], importB: ['رجّع من نسخة', 'Restore backup'],
   restored: ['رجعت البيانات', 'Data restored'], badFile: ['الملف مش صحيح', 'That file is not a backup'], savedT: ['انحفظ', 'Saved'],
   sureDel: ['متأكد بدك تحذف؟', 'Delete this?'], aed: ['درهم', 'AED'],
   dayNames: [['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'], ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']],
@@ -280,7 +282,7 @@ function rollDay() {
 /* ---------- storage (Firebase) ---------- */
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, onSnapshot, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { firebaseConfig } from './config.js';
 
 // Same Firebase project and sign-in as Jaybti; Nafas keeps its data in its own document: users/<uid>/apps/nafas.
@@ -288,12 +290,29 @@ const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const fsdb = initializeFirestore(fbApp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 const $ = id => document.getElementById(id);
-const refs = { uid: null, email: '' };
+const refs = { uid: null, email: '', ready: false };
 let unsub = null;
 const plain = o => JSON.parse(JSON.stringify(o));
 const myDoc = () => doc(fsdb, 'users', refs.uid, 'apps', 'nafas');
 // Writes land in the local cache at once and reach the server when online, so the UI never waits on them.
-function save() { if (refs.uid) setDoc(myDoc(), plain(S)).catch(() => toast('ما انحفظ. جرب كمان مرة')); }
+// Only what changed since the data was last loaded or saved is sent (base), so a phone that opens with an old
+// copy never writes that old copy over what another phone saved. Nothing is sent before his data has arrived.
+// A restore from a backup file (full) replaces the whole document.
+let base = null;
+function save(full) {
+  if (!refs.uid) return;
+  if (!refs.ready) { toast('استنى لتوصل بياناتك'); return; }
+  const cur = plain(S);
+  let sent;
+  if (full) sent = setDoc(myDoc(), cur);
+  else {
+    const ops = diffState(base || {}, cur);
+    if (!ops.length) return;
+    sent = setDoc(myDoc(), nestOps(ops, deleteField()), { merge: true });
+  }
+  base = cur;
+  sent.catch(() => toast('ما انحفظ. جرب كمان مرة'));
+}
 
 /* ---------- sign-in screen ---------- */
 const AUTH_ERR = {
@@ -322,6 +341,16 @@ function drawAuth(msg = '', ok = false) {
   </div>`;
 }
 function showAuth(on) { $('auth').hidden = !on; if (on) drawAuth(); }
+// Shown after sign-in on a phone that has no copy of his data yet, until the data arrives: nothing can be tapped
+// (and so nothing empty can be saved over his data) before that.
+function showWait(offline) {
+  $('auth').hidden = false;
+  $('auth').innerHTML = `<div class="auth-card">
+    <img src="icon-192.png?v=1" alt="" width="72" height="72" class="auth-logo">
+    <h2>نفس</h2><p class="auth-sub">${offline ? 'ما في نت. اتصل لتوصل بياناتك' : 'عم نجيب بياناتك...'}</p>
+    <button class="auth-link" id="aOut">تسجيل الخروج</button>
+  </div>`;
+}
 async function authGo() {
   const email = $('aE').value.trim(), pass = $('aP').value;
   const btn = $('aGo'); btn.disabled = true;
@@ -334,6 +363,7 @@ async function authGo() {
 $('auth').addEventListener('click', async e => {
   const id = e.target.closest('button')?.id;
   if (id === 'aGo') authGo();
+  if (id === 'aOut') signOut(auth);
   if (id === 'aSwitch') { authMode = authMode === 'up' ? 'in' : 'up'; drawAuth(); }
   if (id === 'aReset') {
     const email = $('aE').value.trim();
@@ -354,7 +384,7 @@ const dropSnap = () => { try { localStorage.removeItem(SNAP); } catch (e) {} };
 
 function load() {
   const snap = readSnap();
-  if (snap && snap.uid && snap.data) S = merge(snap.data);
+  if (snap && snap.uid && snap.data) { S = merge(snap.data); base = plain(S); }
   boot();
   A.signout = async b => {
     if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = S.lang === 'en' ? 'Tap again to sign out' : 'اكبس كمان مرة لتسجيل الخروج'; return; }
@@ -368,19 +398,51 @@ function load() {
   }
   onAuthStateChanged(auth, user => {
     if (unsub) { unsub(); unsub = null; }
-    if (!user) { refs.uid = null; refs.email = ''; dropSnap(); S = DEF(); render(); showAuth(true); return; }
-    showAuth(false);
+    if (!user) { refs.uid = null; refs.email = ''; refs.ready = false; base = null; dropSnap(); S = DEF(); render(); showAuth(true); return; }
     refs.uid = user.uid; refs.email = user.email || '';
-    if (readSnap()?.uid !== user.uid) { dropSnap(); S = DEF(); render(); }
-    unsub = onSnapshot(myDoc(), s => {
-      if (s.exists()) { writeSnap(s.data()); S = merge(s.data()); } else { dropSnap(); S = DEF(); }
+    // With his last copy on this phone the app works at once (also offline); without one it waits for the data.
+    refs.ready = readSnap()?.uid === user.uid;
+    if (refs.ready) showAuth(false); else { dropSnap(); S = DEF(); base = null; render(); showWait(false); }
+    let last = null;
+    unsub = onSnapshot(myDoc(), { includeMetadataChanges: true }, s => {
+      // "No document" read from this phone's own empty cache says nothing about the server: keep waiting.
+      if (!s.exists() && s.metadata.fromCache) { if (!refs.ready) showWait(true); return; }
+      const data = s.exists() ? s.data() : null, sig = JSON.stringify(data), first = !refs.ready;
+      if (!first && sig === last) return;
+      last = sig;
+      if (data) { writeSnap(data); S = merge(data); } else { dropSnap(); S = DEF(); }
+      base = plain(S); refs.ready = true;
+      if (first) showAuth(false);
       render();
     }, () => toast('ما قدرت أوصل لبياناتك'));
   });
 }
 /* ---------- actions ---------- */
 function merge(o) { const d = DEF(); return { ...d, ...o, cfg: { ...d.cfg, ...(o.cfg || {}) } }; }
-const commit = () => { save(); render(); };
+const commit = full => { save(full); render(); };
+// What changed between two copies of the data, as [path, value] steps (value undefined = removed). Each day of
+// marks and of cigarettes and each setting is its own step; lists (habits, purchases...) go whole.
+const DEPTH = { marks: 2, cigs: 1, cfg: 1 };
+function diffState(a, b) {
+  const ops = [], same = (x, y) => JSON.stringify(x) === JSON.stringify(y), isMap = x => !!x && typeof x === 'object' && !Array.isArray(x);
+  const walk = (x, y, path, depth) => {
+    for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) {
+      const p = [...path, k], u = x[k], v = y[k], dp = path.length ? depth : DEPTH[k] || 0;
+      if (same(u, v)) continue;
+      // A day of marks that went away is removed mark by mark, so another phone's marks on that day stay.
+      if (dp > 0 && isMap(u) && (isMap(v) || (v === undefined && p[0] === 'marks'))) walk(u, v || {}, p, dp - 1);
+      else ops.push([p, v]);
+    }
+  };
+  walk(a || {}, b || {}, [], 0);
+  return ops;
+}
+// The same steps as one nested object for a merging save; del marks what is removed.
+function nestOps(ops, del) {
+  const out = {};
+  for (const [p, v] of ops) { let o = out; for (const k of p.slice(0, -1)) o = o[k] = o[k] || {}; o[p[p.length - 1]] = v === undefined ? del : v; }
+  return out;
+}
 
 /* ---------- dates and numbers ---------- */
 function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -397,10 +459,13 @@ const N = (n, d = 0) => '<span class="num">' + f(n, d) + '</span>';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const sum = a => a.reduce((x, y) => x + y, 0);
+// Arabic and Persian digits typed from the keyboard (١٥) read as numbers.
+const dig = s => String(s ?? '').replace(/[\u0660-\u0669]/g, c => c.charCodeAt(0) - 0x660).replace(/[\u06F0-\u06F9]/g, c => c.charCodeAt(0) - 0x6F0);
 
 /* ---------- smoking calculations ---------- */
 const oldCigPrice = () => S.cfg.cartonPrice / S.cfg.cartonCigs;
-function smoked(d) { const c = S.cigs[d]; return c ? Math.max(0, (+c.taken || 0) - (+c.left || 0)) : null; }
+// More filters left than taken is a typing mistake: the day is not counted until he fixes it.
+function smoked(d) { const c = S.cigs[d]; if (!c) return null; const n = (+c.taken || 0) - (+c.left || 0); return n < 0 ? null : n; }
 function rangeSmoked(a, b) { let n = 0, days = 0; for (let d = a; d < b; d = addD(d, 1)) { const v = smoked(d); if (v != null) { n += v; days++; } } return { n, days }; }
 const sortedPouches = () => [...S.pouches].sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : (a.at || 0) - (b.at || 0));
 function pouchInfos() {
@@ -511,7 +576,10 @@ function moneyFor(a, b) {
 /* ---------- habit calculations ---------- */
 function habitActive(h, d) { return h.start <= d && (!h.stopped || d < h.stopped); }
 // A habit runs every day, on fixed weekdays (h.days, 0 = Sunday), or a number of times a week (h.perWeek).
-const onDay = (h, d) => !h.days || !h.days.length || h.days.includes(P(d).getDay());
+// When he changes a habit's schedule the old one is kept (h.hist, each valid until a date), so months already
+// scored keep their score: the change counts from the day he made it.
+function schedOn(h, d) { for (const x of h.hist || []) if (d < x.until) return x; return h; }
+const onDay = (h, d) => { const s = schedOn(h, d); return !s.days || !s.days.length || s.days.includes(P(d).getDay()); };
 const weekStart = d => addD(d, -((P(d).getDay() + 6) % 7));
 function weekDone(h, d) {
   const ws = weekStart(d); let n = 0;
@@ -582,21 +650,19 @@ function schedLbl(h) {
 }
 function evalHabit(h, m) {
   const c = S.cfg, a = m + '-01', b = monthEnd(m), today = todayISO();
-  let fu = 0, pa = 0, mi = 0, days = 0;
+  let fu = 0, pa = 0, mi = 0, wfu = 0, wpa = 0, wsum = 0;
   for (let d = a; d <= b && d <= today; d = addD(d, 1)) {
     if (!habitActive(h, d) || !onDay(h, d)) continue;
-    days++;
-    const k = S.marks[d] && S.marks[d][h.id];
-    if (k === 'f') fu++; else if (k === 'p') pa++; else if (k === 'm') mi++;
+    const k = S.marks[d] && S.marks[d][h.id], pw = schedOn(h, d).perWeek;
+    if (pw) { wsum += pw; if (k === 'f') wfu++; else if (k === 'p') wpa++; }
+    else if (k === 'f') fu++; else if (k === 'p') pa++; else if (k === 'm') mi++;
   }
   // Times a week: the month's goal is that rate over the days it ran; days off are not misses.
-  if (h.perWeek) {
-    const goal = days ? Math.max(1, Math.round(h.perWeek * days / 7)) : 0, max = goal * c.sFull;
-    const score = Math.min(fu * c.sFull + pa * c.sPart, max);
-    return { fu, pa, mi: Math.max(0, goal - fu - pa), score, max, pct: max ? score / max * 100 : null };
-  }
-  const tracked = fu + pa + mi, score = fu * c.sFull + pa * c.sPart + mi * c.sMiss, max = tracked * c.sFull;
-  return { fu, pa, mi, score, max, pct: max ? score / max * 100 : null };
+  // Other days: the score is over the days he marked. A month with both (he changed the schedule) adds the two.
+  const goal = wsum ? Math.max(1, Math.round(wsum / 7)) : 0, wmax = goal * c.sFull;
+  const score = Math.min(wfu * c.sFull + wpa * c.sPart, wmax) + fu * c.sFull + pa * c.sPart + mi * c.sMiss;
+  const max = wmax + (fu + pa + mi) * c.sFull;
+  return { fu: fu + wfu, pa: pa + wpa, mi: mi + Math.max(0, goal - wfu - wpa), score, max, pct: max ? score / max * 100 : null };
 }
 
 /* ---------- icons ---------- */
@@ -644,6 +710,7 @@ function scrToday() {
       <div><div class="muted">${t('left')}</div><div class="step"><button data-act="cigStep" data-f="left" data-n="-1">−</button><input id="cLeft" class="num" inputmode="numeric" value="${c ? c.left : ''}" placeholder="0" data-change="cigInput"><button data-act="cigStep" data-f="left" data-n="1">+</button></div></div>
       <div><div class="muted">${t('smoked')}</div><div class="big num">${v == null ? '—' : v}</div></div>
     </div>
+    ${c && v == null ? `<div class="warn">${t('badCig')}</div>` : ''}
     ${c ? `<div class="btns"><button class="btn sec" data-act="cigClear">${t('clear')}</button></div>` : `<div class="muted" style="margin-top:8px;text-align:center">${t('notLogged')}</div>`}</section>`;
 
   const infos = pouchInfos(), p = pouchOn(d, infos);
@@ -660,7 +727,7 @@ function scrToday() {
   const hs = S.habits.filter(h => habitActive(h, d) && onDay(h, d));
   const habits = `<section class="card"><h2>${t('yourHabits')}<small>${t('tapHint')}</small></h2>
     ${hs.length ? hs.map(h => { const k = S.marks[d] && S.marks[d][h.id];
-      return `<div class="row tap" data-act="mark" data-h="${h.id}" data-d="${d}"><span>${esc(h.name)}</span><span style="display:flex;align-items:center;gap:8px"><span class="muted">${h.perWeek ? t('weekProg', { a: weekDone(h, d), b: h.perWeek }) : markLbl(k)}</span><span class="dot ${markCls(k)}"></span></span></div>`; }).join('')
+      return `<div class="row tap" data-act="mark" data-h="${h.id}" data-d="${d}"><span>${esc(h.name)}</span><span style="display:flex;align-items:center;gap:8px"><span class="muted">${schedOn(h, d).perWeek ? t('weekProg', { a: weekDone(h, d), b: schedOn(h, d).perWeek }) : markLbl(k)}</span><span class="dot ${markCls(k)}"></span></span></div>`; }).join('')
       : `<div class="empty muted">${t('noHabits')}</div>`}
     <div class="btns"><button class="btn sec" data-act="habitNew">${ic('plus')} ${t('addHabit')}</button></div></section>`;
   // Monthly nudge to back up, once there is data worth keeping.
@@ -833,7 +900,7 @@ const CUR = [['AED', 1], ['JOD', 5.18], ['USD', 3.6725], ['EUR', 4.0], ['SAR', 0
 /* ---------- actions ---------- */
 function setCig(taken, left) {
   if (taken === '' && left === '') delete S.cigs[UI.day];
-  else S.cigs[UI.day] = { taken: Math.max(0, parseInt(taken) || 0), left: Math.max(0, parseInt(left) || 0) };
+  else S.cigs[UI.day] = { taken: Math.max(0, parseInt(dig(taken)) || 0), left: Math.max(0, parseInt(dig(left)) || 0) };
   commit();
 }
 const A = {
@@ -844,7 +911,8 @@ const A = {
   goMonth: e => { UI.month = e.dataset.m; render(); window.scrollTo(0, 0); },
   cigStep: e => {
     const c = S.cigs[UI.day] || { taken: 0, left: 0 }, k = e.dataset.f;
-    if (!S.cigs[UI.day] && k === 'taken' && +e.dataset.n > 0) { const tg = targetFor(UI.day); c.taken = tg.type === 'target' ? tg.n : 0; }
+    // The first + on an empty day fills in the day's target itself (the filters he takes out), not target + 1.
+    if (!S.cigs[UI.day] && k === 'taken' && +e.dataset.n > 0) { const tg = targetFor(UI.day); if (tg.type === 'target' && tg.n > 0) { setCig(tg.n, 0); return; } }
     c[k] = Math.max(0, (+c[k] || 0) + +e.dataset.n); setCig(c.taken, c.left);
   },
   cigInput: () => setCig(val('cTaken'), val('cLeft')),
@@ -853,7 +921,7 @@ const A = {
     const d = e.dataset.d, h = e.dataset.h, cur = S.marks[d] && S.marks[d][h];
     const hb = S.habits.find(x => x.id === h);
     // Times-a-week habits have no "missed": a day off is fine.
-    const nx = (hb && hb.perWeek ? { undefined: 'f', f: 'p', p: undefined, m: undefined } : { undefined: 'f', f: 'p', p: 'm', m: undefined })[cur];
+    const nx = (hb && schedOn(hb, d).perWeek ? { undefined: 'f', f: 'p', p: undefined, m: undefined } : { undefined: 'f', f: 'p', p: 'm', m: undefined })[cur];
     S.marks[d] = S.marks[d] || {};
     if (nx) S.marks[d][h] = nx; else delete S.marks[d][h];
     if (!Object.keys(S.marks[d]).length) delete S.marks[d];
@@ -886,7 +954,11 @@ const A = {
     const perWeek = mode === 'week' ? Math.min(7, Math.max(1, parseInt(val('hPer')) || 1)) : 0;
     const h = e.dataset.id && S.habits.find(x => x.id === e.dataset.id);
     const data = { name, start, days, perWeek, remind: val('hRemind'), remindPrev: document.getElementById('hPrev').checked };
-    if (h) Object.assign(h, data); else S.habits.push({ id: uid(), ...data });
+    if (h) {
+      const today = todayISO(), was = { days: h.days || [], perWeek: h.perWeek || 0 }, hist = h.hist || [];
+      if (h.start < today && JSON.stringify(was) !== JSON.stringify({ days, perWeek }) && (!hist.length || hist[hist.length - 1].until < today)) h.hist = [...hist, { until: today, ...was }];
+      Object.assign(h, data);
+    } else S.habits.push({ id: uid(), ...data });
     closeSheet(); commit();
   },
   habitStop: e => { const h = S.habits.find(x => x.id === e.dataset.id); h.stopped = h.stopped ? undefined : todayISO(); if (!h.stopped) delete h.stopped; closeSheet(); commit(); },
@@ -1033,6 +1105,17 @@ const A = {
   exportB: async () => {
     const txt = JSON.stringify(S, null, 1), name = 'nafas-backup-' + todayISO() + '.json';
     const done = msg => { S.lastBackup = todayISO(); closeSheet(); commit(); toast(msg); };
+    // The Android app cannot download: it writes the file, then opens the share sheet (Drive, email, Telegram).
+    // "Saved" is only said once the share sheet has taken the file.
+    const NP = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins;
+    if (NP) {
+      try {
+        const { uri } = await NP.Filesystem.writeFile({ path: name, data: txt, directory: 'CACHE', encoding: 'utf8' });
+        await NP.Share.share({ title: t('backup'), files: [uri] });
+        done(t('backupSaved'));
+      } catch (e) { if (!/cancel/i.test(String(e && e.message))) toast(t('backupFail')); }
+      return;
+    }
     // Phones get the share sheet (save to Drive, Files or email); elsewhere the file downloads.
     try {
       const file = new File([txt], name, { type: 'application/json' });
@@ -1046,7 +1129,7 @@ const A = {
   importB: () => document.getElementById('impFile').click(),
   importFile: e => {
     const file = e.files && e.files[0]; if (!file) return;
-    file.text().then(txt => { const o = JSON.parse(txt); if (!o || !o.cfg || !Array.isArray(o.habits)) throw 0; if (!confirm(t('restore') + '?')) return; S = merge(o); closeSheet(); commit(); toast(t('restored')); })
+    file.text().then(txt => { const o = JSON.parse(txt); if (!o || !o.cfg || !Array.isArray(o.habits)) throw 0; if (!confirm(t('restoreSure'))) return; S = merge(o); closeSheet(); commit(true); toast(t('restored')); })
       .catch(() => toast(t('badFile')));
   },
   close: () => closeSheet(),
